@@ -53,7 +53,10 @@ export function loadProducts(): Product[] {
   try {
     const stored = localStorage.getItem(productKey);
     if (stored) {
-      return JSON.parse(stored) as Product[];
+      const parsed = JSON.parse(stored) as Product[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     }
   } catch (error) {
     console.warn('Error loading products from localStorage', error);

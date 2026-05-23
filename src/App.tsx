@@ -18,6 +18,69 @@ function productMask(text: string) {
   return text.length > 85 ? `${text.slice(0, 82)}...` : text;
 }
 
+const categoryThemes = {
+  All: {
+    title: 'Find the perfect fit across every collection',
+    subtitle: 'Experience premium curation for men, women, children, and pets with rich styling and effortless browsing.',
+    buttonLabel: 'Browse all categories',
+    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80',
+    accent: ['#ff84cb', '#7b5cff'],
+    features: [
+      'Elegant interface with smooth interactions',
+      'Cross-category styling for every lifestyle',
+      'Fast checkout and polished product discovery'
+    ]
+  },
+  Men: {
+    title: 'Modern essentials for him',
+    subtitle: 'Bold, refined looks built for confident everyday wear and effortless style.',
+    buttonLabel: 'Shop the men’s collection',
+    image: 'https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=1200&q=80',
+    accent: ['#74c7ff', '#1f4eab'],
+    features: [
+      'Tailored streetwear and sharp layering',
+      'Durable materials with modern accents',
+      'Performance pieces with a premium feel'
+    ]
+  },
+  Women: {
+    title: 'Refined style for her',
+    subtitle: 'Soft silhouettes, statement details, and polished pieces designed to elevate every outfit.',
+    buttonLabel: 'Shop the women’s collection',
+    image: 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=1200&q=80',
+    accent: ['#ff9cd6', '#ff5d7c'],
+    features: [
+      'Luxury-inspired textures and feminine shapes',
+      'Chic essentials for day-to-night looks',
+      'Sophisticated accents that feel modern'
+    ]
+  },
+  Children: {
+    title: 'Playful style for kids',
+    subtitle: 'Bright, comfortable apparel and playful pieces built for every adventurous day.',
+    buttonLabel: 'Shop the children’s collection',
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
+    accent: ['#f8d64c', '#6bc1ff'],
+    features: [
+      'Soft fabrics made for active days',
+      'Fun patterns and cheerful colors',
+      'Easy-care gear parents will love'
+    ]
+  },
+  Pets: {
+    title: 'Cozy accessories for pets',
+    subtitle: 'Premium pet essentials with plush comfort, stylish flair, and trustworthy durability.',
+    buttonLabel: 'Shop the pet collection',
+    image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80',
+    accent: ['#93f4d1', '#5ddeff'],
+    features: [
+      'Premium beds, leashes, and accessories',
+      'Comfort-first design for pets of all sizes',
+      'Soft textures with a polished look'
+    ]
+  }
+};
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,6 +147,8 @@ function App() {
       return categoryMatch && searchMatch;
     });
   }, [category, products, search]);
+
+  const activeTheme = categoryThemes[category as keyof typeof categoryThemes] || categoryThemes.All;
 
   const cartItems = useMemo(() => {
     return Object.entries(cart).map(([id, quantity]) => {
@@ -318,177 +383,262 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={
-            <section className="section container">
-              <motion.div className="hero fade-in" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75 }}>
-                <span className="hero-pill">Curated fashion, lifestyle, & pet essentials.</span>
-                <h1 className="title">Pink Halo Co. brings fresh style to every wardrobe.</h1>
-                <p className="subtitle">
-                  Discover premium pieces for men, women, children, and pets with seamless checkout and built-in inventory tracking.
-                </p>
-                <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <button className="primary" onClick={() => navigate('/')}>Shop the latest</button>
-                  <button className="secondary" onClick={() => navigate('/admin')}>Admin panel</button>
-                </div>
-              </motion.div>
-
-              <div className="section card" style={{ marginTop: '1.75rem' }}>
-                <div className="grid grid-2" style={{ alignItems: 'center' }}>
-                  <div>
-                    <p className="badge">Stay notified</p>
-                    <h2 style={{ margin: '0.75rem 0' }}>Join our Pink Halo newsletter.</h2>
-                    <p className="subtitle">Get product launches, styling tips, and special offers straight to your inbox.</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <input
-                      className="input"
-                      placeholder="Enter your email"
-                      value={subscriberEmail}
-                      onChange={(event) => setSubscriberEmail(event.target.value)}
-                      style={{ minWidth: '240px' }}
-                    />
-                    <button className="primary" style={{ minWidth: '180px' }} onClick={addSubscriber}>Subscribe</button>
-                  </div>
-                </div>
-                {newsletterStatus && <p style={{ marginTop: '1rem', color: '#d8d8e8' }}>{newsletterStatus}</p>}
-              </div>
-
-              <div className="section">
-                <div className="grid grid-2" style={{ alignItems: 'center' }}>
-                  <div>
-                    <div className="badge">Trusted by modern boutiques</div>
-                    <h2 className="title" style={{ fontSize: '2.5rem', marginTop: '1.5rem' }}>
-                      Product sourcing made simple.
-                    </h2>
-                    <p className="subtitle">
-                      Add links from trusted supplier pages and let the admin dashboard extract product metadata automatically.
-                    </p>
-                  </div>
-                  <div className="card" style={{ minHeight: '320px' }}>
-                    <div className="grid" style={{ gap: '1.25rem' }}>
-                      <div>
-                        <strong>Fast scraping</strong>
-                        <p>Product names, descriptions, prices, and images populate automatically from your source URL.</p>
-                      </div>
-                      <div>
-                        <strong>Inventory tracking</strong>
-                        <p>Stock and profit metrics are tracked in real time and ready for Supabase upgrade.</p>
-                      </div>
-                      <div>
-                        <strong>Ready for Stripe</strong>
-                        <p>Checkout session creation is ready for your Stripe keys, and the storefront is configured for Netlify deployment.</p>
-                      </div>
+            <>
+              {/* Hero Section */}
+              <section
+                className={`hero-section container hero-section--${category.toLowerCase()}`}
+                style={{
+                  backgroundImage: `linear-gradient(135deg, ${activeTheme.accent[0]}22, ${activeTheme.accent[1]}33), url(${activeTheme.image})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }}
+              >
+                <motion.div className="hero-content" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }}>
+                  <div className="hero-text">
+                    <span className="hero-pill">{category === 'All' ? 'Shop every category' : `${category} collection`}</span>
+                    <h1>{activeTheme.title}</h1>
+                    <p>{activeTheme.subtitle}</p>
+                    <div className="hero-buttons">
+                      <a href="#products" className="primary">{activeTheme.buttonLabel}</a>
+                      <button className="secondary" onClick={() => { setCategory('All'); navigate('/'); }}>View All Products</button>
                     </div>
                   </div>
-                </div>
-              </div>
+                  <motion.div className="hero-visual" initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 1.1, ease: 'easeOut' }}>
+                    <div className="hero-image-frame">
+                      <img src={activeTheme.image} alt={`${category} hero`} />
+                    </div>
+                  </motion.div>
+                </motion.div>
+              </section>
 
-              <div className="section">
-                <div className="grid grid-4">
+              {category !== 'All' && (
+                <section className="category-theme-panel container">
+                  <div className="section-header">
+                    <h2>{category} style guide</h2>
+                    <p>{`Curated highlights to help you shop the best ${category.toLowerCase()} picks.`}</p>
+                  </div>
+                  <div className="theme-feature-grid">
+                    {activeTheme.features.map((feature) => (
+                      <motion.div
+                        key={feature}
+                        className="theme-feature-card"
+                        whileHover={{ y: -6, scale: 1.01 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        <p>{feature}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Featured Categories */}
+              <section className="featured-section container">
+                <div className="section-header">
+                  <h2>Shop by Category</h2>
+                  <p>Browse our curated collections</p>
+                </div>
+                <div className="category-grid">
                   {['Men', 'Women', 'Children', 'Pets'].map((item) => (
-                    <motion.div key={item} className="card" whileHover={{ y: -6 }}>
+                    <motion.button 
+                      key={item} 
+                      className="category-card" 
+                      type="button"
+                      onClick={() => navigate(`/?category=${item}`)}
+                      whileHover={{ y: -6 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
                       <h3>{item}</h3>
-                      <p>Handpicked collection for {item.toLowerCase()} with modern essentials and seasonal flair.</p>
-                    </motion.div>
+                      <p>Shop the best in {item}</p>
+                    </motion.button>
                   ))}
                 </div>
-              </div>
+              </section>
 
-              <div className="section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div style={{ flex: '1 1 320px' }}>
-                    <label className="badge">Search</label>
+              {/* Newsletter Section */}
+              <section className="newsletter-section container">
+                <h2>Stay in the Loop</h2>
+                <p>Get exclusive deals, new arrivals, and styling tips delivered to your inbox.</p>
+                <div className="newsletter-form">
+                  <input
+                    className="input"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={subscriberEmail}
+                    onChange={(event) => setSubscriberEmail(event.target.value)}
+                  />
+                  <button className="primary" onClick={addSubscriber}>Subscribe</button>
+                </div>
+                {newsletterStatus && <p style={{ color: '#ff98d8', marginTop: '1rem' }}>{newsletterStatus}</p>}
+              </section>
+
+              {/* Search and Filter */}
+              <section className="container">
+                <div className="search-filter-bar">
+                  <div className="search-box">
+                    <span className="search-icon">🔍</span>
                     <input
                       className="input"
-                      placeholder="Search by name or category"
+                      placeholder="Search products..."
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
-                      style={{ marginTop: '1rem' }}
                     />
                   </div>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <label className="badge">Filter</label>
-                    <select className="select" value={category} onChange={(event) => setCategory(event.target.value)} style={{ marginTop: '1rem' }}>
-                      <option value="All">All categories</option>
-                      {getCategories().map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
-                    </select>
-                  </div>
+                  <select className="filter-select select" value={category} onChange={(event) => setCategory(event.target.value)}>
+                    <option value="All">All Categories</option>
+                    {getCategories().map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
+                  </select>
                 </div>
-              </div>
+              </section>
 
-              <div className="section">
-                <div className="grid grid-3">
-                  {filteredProducts.map((product) => (
-                    <motion.article key={product.id} className="card" whileHover={{ y: -4 }}>
-                      <div className="product-image">
-                        <img src={product.imageUrl} alt={product.name} loading="lazy" />
-                      </div>
-                      <div style={{ marginTop: '1.25rem' }}>
-                        <div className="badge">{product.category}</div>
-                        <h3 style={{ margin: '1rem 0 0.75rem' }}>{product.name}</h3>
-                        <p style={{ color: '#cdd2e8' }}>{productMask(product.description)}</p>
-                        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <strong>{formatCurrency(product.price)}</strong>
-                          <span className="status-pill">{product.stock} in stock</span>
-                        </div>
-                        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                          <button className="primary" style={{ flex: '1 1 auto' }} onClick={() => addItemToCart(product)}>Add to cart</button>
-                          <a className="secondary" href={product.link} target="_blank" rel="noreferrer" style={{ flex: '1 1 auto', textAlign: 'center', padding: '1rem 1rem' }}>View</a>
-                        </div>
-                      </div>
-                    </motion.article>
-                  ))}
-                </div>
-              </div>
-
-              <section className="section card" style={{ marginTop: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <p className="badge">Shopping cart</p>
-                    <h3>{cartItems.length ? 'Ready for checkout' : 'Your cart is empty'}</h3>
-                    <p className="subtitle">Track your selected items and complete purchase through Stripe when configured.</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ margin: 0, fontSize: '1.15rem' }}>Subtotal: <strong>{formatCurrency(total)}</strong></p>
-                    <p style={{ margin: '0.5rem 0 0', color: '#c5c8da' }}>Estimated profit: <strong>{formatCurrency(profit)}</strong></p>
-                    <button className="primary" onClick={createCheckoutSession} disabled={!cartItems.length} style={{ marginTop: '1rem' }}>{cartItems.length ? 'Proceed to checkout' : 'Add items to cart'}</button>
-                  </div>
-                </div>
-                {cartItems.length > 0 && (
-                  <div className="grid grid-2" style={{ marginTop: '1.5rem', gap: '1rem' }}>
-                    {cartItems.map((item) => (
-                      <div key={item.product.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong>{item.product.name}</strong>
-                          <p style={{ margin: '0.5rem 0 0', color: '#c5c8da' }}>{item.quantity} × {formatCurrency(item.product.price)}</p>
-                        </div>
-                        <button className="secondary" onClick={() => removeFromCart(item.product.id)}>Remove</button>
-                      </div>
-                    ))}
+              {/* Products Grid */}
+              <section id="products" className="container" style={{ marginBottom: '4rem' }}>
+                {filteredProducts.length > 0 ? (
+                  <>
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h2 style={{ fontSize: '1.8rem' }}>
+                        {category === 'All' ? 'All Products' : `${category} Collection`}
+                      </h2>
+                      <p style={{ color: '#b8b8c8' }}>Showing {filteredProducts.length} items</p>
+                    </div>
+                    <div className="grid grid-4">
+                      {filteredProducts.map((product) => (
+                        <motion.div 
+                          key={product.id} 
+                          className="product-card"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                          whileHover={{ y: -8 }}
+                        >
+                          <div className="product-image-wrapper">
+                            <img src={product.imageUrl} alt={product.name} loading="lazy" />
+                            {product.stock < 5 && product.stock > 0 && (
+                              <span className="product-badge">Low Stock</span>
+                            )}
+                            {product.stock === 0 && (
+                              <span className="product-badge" style={{ background: '#666' }}>Sold Out</span>
+                            )}
+                          </div>
+                          <div className="product-info">
+                            <span style={{ fontSize: '0.85rem', color: '#ff98d8' }}>{product.category}</span>
+                            <h3 className="product-name">{product.name}</h3>
+                            <p className="product-desc">{productMask(product.description)}</p>
+                            <div className="product-footer" style={{ gap: '0.75rem' }}>
+                              <span className="product-price">{formatCurrency(product.price)}</span>
+                              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <button 
+                                  className="product-add-btn" 
+                                  onClick={() => addItemToCart(product)}
+                                  disabled={product.stock <= 0}
+                                >
+                                  {product.stock > 0 ? 'Add to cart' : 'Out of stock'}
+                                </button>
+                                <a 
+                                  className="secondary" 
+                                  href={product.link} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  View
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                    <h3>No products found</h3>
+                    <p style={{ color: '#b8b8c8' }}>Try adjusting your search or filters</p>
                   </div>
                 )}
               </section>
 
-              <div className="section card" style={{ marginTop: '2rem' }}>
-                <div className="grid grid-2" style={{ alignItems: 'center' }}>
-                  <div>
-                    <h2>Seamless checkout and performance-ready architecture</h2>
-                    <p className="subtitle">
-                      The store is built with optimized page structure, responsive design, SEO metadata, and serverless hooks for Stripe and Supabase.
-                    </p>
+              {/* Shopping Cart */}
+              <section className="container" style={{ marginBottom: '4rem' }}>
+                {cartItems.length > 0 && (
+                  <motion.div 
+                    className="cart-sidebar"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <h3 style={{ marginBottom: '1.5rem' }}>Shopping Cart ({cartItems.length})</h3>
+                    {cartItems.map((item) => (
+                      <div key={item.product.id} className="cart-item">
+                        <div className="cart-item-info">
+                          <div className="cart-item-name">{item.product.name}</div>
+                          <div className="cart-item-qty">Qty: {item.quantity}</div>
+                        </div>
+                        <div>
+                          <div className="cart-item-price">{formatCurrency(item.product.price * item.quantity)}</div>
+                          <button 
+                            className="secondary" 
+                            onClick={() => removeFromCart(item.product.id)}
+                            style={{ marginTop: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span>Subtotal:</span>
+                        <strong>{formatCurrency(total)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b8b8c8', marginBottom: '1.5rem' }}>
+                        <span>Profit margin:</span>
+                        <span>{formatCurrency(profit)}</span>
+                      </div>
+                      <button 
+                        className="primary" 
+                        onClick={createCheckoutSession}
+                        style={{ width: '100%' }}
+                      >
+                        Checkout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </section>
+
+              {/* Trust & Info Section */}
+              <section className="featured-section container" style={{ marginBottom: '4rem' }}>
+                <div className="section-header">
+                  <h2>Why Shop With Us</h2>
+                  <p>Experience the Pink Halo difference</p>
+                </div>
+                <div className="category-grid">
+                  <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>🚚 Free Shipping</h3>
+                    <p>On orders over $75</p>
                   </div>
-                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div className="card" style={{ flex: '1' }}>
-                      <strong>Fast load</strong>
-                      <p>Minimal assets and modern CSS deliver a polished experience on desktop and mobile.</p>
-                    </div>
-                    <div className="card" style={{ flex: '1' }}>
-                      <strong>Rich data</strong>
-                      <p>Admin scraping makes catalog building easy while keeping product details fresh and accurate.</p>
-                    </div>
+                  <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>✨ Exclusive Deals</h3>
+                    <p>Limited-time offers</p>
+                  </div>
+                  <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>📦 New Drops Weekly</h3>
+                    <p>Fresh arrivals constantly</p>
+                  </div>
+                  <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>🔒 Secure Checkout</h3>
+                    <p>Your info is safe</p>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+
+              {/* Footer Call to Action */}
+              <section style={{ textAlign: 'center', padding: '3rem', marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Ready to Shop?</h2>
+                <p style={{ color: '#b8b8c8', marginBottom: '1.5rem' }}>Explore our latest collection and find your next favorite piece</p>
+                <a href="#products" className="primary">Start Shopping</a>
+              </section>
+            </>
           } />
 
           <Route path="/admin" element={
@@ -634,7 +784,7 @@ function App() {
       </main>
 
       <footer className="footer container">
-        <p>Pink Halo Co. — stylish storefront built for modern ecommerce.</p>
+        <p>Pink Halo Co. — Shop exclusive products and limited-time offers now.</p>
       </footer>
     </div>
   );
