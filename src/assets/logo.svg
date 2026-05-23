@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="280" height="80" viewBox="0 0 560 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pink Halo Co. logo">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0%" stop-color="#ff84cb"/>
+      <stop offset="100%" stop-color="#7b5cff"/>
+    </linearGradient>
+    <filter id="f1" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feBlend in="SourceGraphic" in2="b"/>
+    </filter>
+  </defs>
+  <!-- halo -->
+  <ellipse cx="120" cy="34" rx="78" ry="22" fill="url(#g1)" opacity="0.95" filter="url(#f1)"/>
+  <!-- text -->
+  <g font-family="'Georgia', serif" font-weight="700">
+    <text x="200" y="56" font-size="46" fill="url(#g1)" style="font-style:italic;">Pink Halo</text>
+    <text x="200" y="92" font-size="20" fill="#ffd07a">Co.</text>
+  </g>
+</svg>

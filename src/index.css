@@ -7,6 +7,11 @@
   scroll-behavior: smooth;
 }
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 * {
   box-sizing: border-box;
 }
@@ -47,10 +52,17 @@ button {
 .container {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
+  padding: 0 1rem;
 }
 
 .section {
   padding: 4rem 0;
+}
+
+@media (max-width: 640px) {
+  .section {
+    padding: 2rem 0;
+  }
 }
 
 .title {
@@ -339,6 +351,95 @@ nav {
   flex-wrap: wrap;
 }
 
+.hero-buttons a,
+.hero-buttons button {
+  min-width: 170px;
+}
+
+.theme-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.theme-feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.75rem;
+  min-height: 180px;
+}
+
+.theme-feature-card p {
+  color: #d8d8e8;
+  line-height: 1.75;
+}
+
+@media (max-width: 960px) {
+  .theme-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .theme-feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-buttons a,
+  .hero-buttons button {
+    width: 100%;
+  }
+  .hero-visual {
+    min-height: 280px;
+  }
+  .newsletter-section {
+    padding: 2rem;
+  }
+  .newsletter-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-select {
+    min-width: 100%;
+  }
+  .cart-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    margin-top: 2rem;
+  }
+  .cart-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .cart-item-price {
+    text-align: left;
+    margin-top: 0.75rem;
+  }
+  .mobile-nav-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(7, 8, 18, 0.98);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1rem 1.25rem 1.25rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 641px) {
+  .mobile-nav-menu {
+    display: none;
+  }
+}
+
 /* Product card enhancements */
 .product-card {
   background: rgba(255, 255, 255, 0.02);
@@ -545,6 +646,8 @@ nav {
   top: 100px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+  width: 100%;
+  max-width: 440px;
 }
 
 .cart-item {

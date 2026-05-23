@@ -58,7 +58,7 @@ This repository now includes planning documentation for AI-powered product enric
 1. Connect the repository to Netlify.
 2. Configure environment variables in Netlify:
    - `STRIPE_SECRET_KEY`
-   - `STRIPE_PUBLISHABLE_KEY`
+   - `VITE_STRIPE_PUBLISHABLE_KEY`
    - `SITE_URL`
    - `ADMIN_SECRET`
    - `EMAIL_SMTP_HOST`
@@ -69,6 +69,29 @@ This repository now includes planning documentation for AI-powered product enric
    - `VITE_SUPABASE_URL` (optional)
    - `VITE_SUPABASE_ANON_KEY` (optional)
 3. Deploy the site.
+
+## Local Stripe setup
+
+For local development, create a `.env.local` file in the project root using the keys from your Stripe dashboard.
+Do not commit this file to source control.
+
+Example values:
+
+```env
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_key_here
+STRIPE_SECRET_KEY=sk_test_your_key_here
+SITE_URL=http://localhost:4173
+VITE_ADMIN_SECRET=pink-halo-admin
+EMAIL_SMTP_HOST=
+EMAIL_SMTP_PORT=465
+EMAIL_SMTP_USER=
+EMAIL_SMTP_PASSWORD=
+EMAIL_FROM=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+The frontend uses `VITE_STRIPE_PUBLISHABLE_KEY` for Stripe checkout redirects, while the serverless checkout function reads `STRIPE_SECRET_KEY`.
 
 ## Admin panel
 

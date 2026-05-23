@@ -45,7 +45,7 @@ export async function handler(event) {
       cancel_url: `${siteUrl}/?checkout=cancel`
     });
 
-    return { statusCode: 200, body: JSON.stringify({ url: session.url }) };
+    return { statusCode: 200, body: JSON.stringify({ url: session.url, sessionId: session.id }) };
   } catch (error) {
     return { statusCode: 500, body: JSON.stringify({ error: 'Unable to create Stripe checkout session.' }) };
   }

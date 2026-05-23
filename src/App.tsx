@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import Header from './components/Header';
+import ProductCard from './components/ProductCard';
+import CTA from './components/CTA';
+import Footer from './components/Footer';
 import { loadProducts, saveProducts, getCategories } from './lib/products';
 import { loadSubscribers, saveSubscribers, saveSubscriberToSupabase, validateEmail } from './lib/newsletter';
 import type { Product } from './lib/types';
@@ -261,6 +266,12 @@ function App() {
   }
 
   async function createCheckoutSession() {
+    const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!publishableKey) {
+      setNotification('Missing Stripe publishable key. Configure VITE_STRIPE_PUBLISHABLE_KEY in your environment.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -272,8 +283,19 @@ function App() {
           url: item.product.link
         })) })
       });
+
       const data = await response.json();
-      if (data.url) {
+      if (data.sessionId) {
+        const stripe = await loadStripe(publishableKey);
+        if (!stripe) {
+          setNotification('Unable to initialize Stripe.');
+          return;
+        }
+        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        if (error) {
+          setNotification(error.message || 'Unable to redirect to Stripe checkout.');
+        }
+      } else if (data.url) {
         window.location.href = data.url;
       } else {
         setNotification(data.error || 'Unable to initiate checkout.');
@@ -361,24 +383,8 @@ function App() {
   }, [products]);
 
   return (
-    <div>
-      <header className="container">
-        <nav className="navbar">
-          <div>
-            <Link to="/" className="title" style={{ fontSize: '1.35rem' }}>
-              Pink Halo Co.
-            </Link>
-          </div>
-          <div className="nav-links">
-            <Link to="/" className="nav-link">Home</Link>
-            <Link to="/?category=Men" className="nav-link">Men</Link>
-            <Link to="/?category=Women" className="nav-link">Women</Link>
-            <Link to="/?category=Children" className="nav-link">Children</Link>
-            <Link to="/?category=Pets" className="nav-link">Pets</Link>
-            <Link to="/admin" className="nav-link">Admin</Link>
-          </div>
-        </nav>
-      </header>
+    <div className="min-h-screen bg-neutral-900 text-white">
+      <Header />
 
       <main>
         <Routes>
@@ -501,52 +507,9 @@ function App() {
                       </h2>
                       <p style={{ color: '#b8b8c8' }}>Showing {filteredProducts.length} items</p>
                     </div>
-                    <div className="grid grid-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                       {filteredProducts.map((product) => (
-                        <motion.div 
-                          key={product.id} 
-                          className="product-card"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
-                          whileHover={{ y: -8 }}
-                        >
-                          <div className="product-image-wrapper">
-                            <img src={product.imageUrl} alt={product.name} loading="lazy" />
-                            {product.stock < 5 && product.stock > 0 && (
-                              <span className="product-badge">Low Stock</span>
-                            )}
-                            {product.stock === 0 && (
-                              <span className="product-badge" style={{ background: '#666' }}>Sold Out</span>
-                            )}
-                          </div>
-                          <div className="product-info">
-                            <span style={{ fontSize: '0.85rem', color: '#ff98d8' }}>{product.category}</span>
-                            <h3 className="product-name">{product.name}</h3>
-                            <p className="product-desc">{productMask(product.description)}</p>
-                            <div className="product-footer" style={{ gap: '0.75rem' }}>
-                              <span className="product-price">{formatCurrency(product.price)}</span>
-                              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button 
-                                  className="product-add-btn" 
-                                  onClick={() => addItemToCart(product)}
-                                  disabled={product.stock <= 0}
-                                >
-                                  {product.stock > 0 ? 'Add to cart' : 'Out of stock'}
-                                </button>
-                                <a 
-                                  className="secondary" 
-                                  href={product.link} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  style={{ padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                  View
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
+                        <ProductCard key={product.id} product={product} onAdd={addItemToCart} formatCurrency={formatCurrency} productMask={productMask} />
                       ))}
                     </div>
                   </>
@@ -575,6 +538,7 @@ function App() {
                         </div>
                         <div>
                           <div className="cart-item-price">{formatCurrency(item.product.price * item.quantity)}</div>
+                      <Footer />
                           <button 
                             className="secondary" 
                             onClick={() => removeFromCart(item.product.id)}
@@ -632,11 +596,10 @@ function App() {
                 </div>
               </section>
 
-              {/* Footer Call to Action */}
-              <section style={{ textAlign: 'center', padding: '3rem', marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Ready to Shop?</h2>
-                <p style={{ color: '#b8b8c8', marginBottom: '1.5rem' }}>Explore our latest collection and find your next favorite piece</p>
-                <a href="#products" className="primary">Start Shopping</a>
+              <section className="container">
+                <div className="mx-auto" style={{ maxWidth: 960 }}>
+                  <CTA />
+                </div>
               </section>
             </>
           } />
