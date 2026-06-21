@@ -20,5 +20,5 @@ export interface CartItem {
 export interface InventorySummary {
   totalStock: number;
   productCount: number;
-  totalProfit: number;
+  totalValue: number;
 }

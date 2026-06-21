@@ -1,16 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Great+Vibes:wght@400&display=swap');
+
 :root {
-  color-scheme: dark;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #070812;
-  color: #f8f8ff;
-  accent-color: #ff87c6;
+  /* Primary Colors */
+  --color-pink: #FF5FA2;
+  --color-rose-quartz: #F8C8DC;
+  --color-cloud-white: #FFF8FB;
+  --color-champagne-gold: #F4C27A;
+  --color-blush-glow: #FFD9E8;
+  --color-deep-velvet: #29111B;
+  --color-moonlight-cream: #FFF3EE;
+
+  /* Secondary */
+  --color-soft-ivory: #FFF1F4;
+  --color-light-rose: #FDEFEE;
+
+  color-scheme: light;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(180deg, #fff3ee 0%, #ffe7f0 55%, #fff9fb 100%);
+  color: #3D2A3D;
+  accent-color: #FF5FA2;
   scroll-behavior: smooth;
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 
 * {
   box-sizing: border-box;
@@ -23,9 +37,68 @@ html, body, #root {
 
 body {
   line-height: 1.6;
-  background: radial-gradient(circle at top, rgba(255, 135, 198, 0.18), transparent 28%),
-    radial-gradient(circle at 20% 70%, rgba(111, 192, 255, 0.1), transparent 25%),
-    #070812;
+  background-image: radial-gradient(circle at top left, rgba(255, 95, 162, 0.12), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(248, 200, 220, 0.14), transparent 18%),
+    linear-gradient(180deg, #fff3ee 0%, #ffe7f0 50%, #fff9fb 100%);
+  overflow-x: hidden;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Accent text for luxury sections */
+.accent-script {
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+  font-size: 1.25rem;
+  letter-spacing: 0.03em;
+  color: #db5d93;
+}
+
+/* Gradient backgrounds */
+.hero-gradient {
+  background: radial-gradient(circle at top center, rgba(255, 255, 255, 0.95), rgba(255, 217, 232, 0.65) 28%, rgba(255, 246, 248, 0.82) 68%, rgba(255, 238, 244, 0.9));
+}
+
+.luxury-cta-gradient {
+  background: linear-gradient(
+    90deg,
+    #ff7ab6 0%,
+    #ff95c4 45%,
+    #ffbe84 100%
+  );
+}
+
+.dark-luxury-bg {
+  background: linear-gradient(
+    180deg,
+    #12060D 0%,
+    #29111B 100%
+  );
+}
+
+/* Glow effects */
+.glow-pink {
+  box-shadow: 0 0 30px rgba(255, 95, 162, 0.4);
+}
+
+.glow-gold {
+  box-shadow: 0 0 30px rgba(244, 194, 122, 0.3);
+}
+
+/* Smooth transitions */
+button, a {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effects */
+.luxury-hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(255, 95, 162, 0.25);
 }
 
 img {
@@ -50,7 +123,7 @@ button {
 }
 
 .container {
-  width: min(1120px, calc(100% - 2rem));
+  width: min(1024px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 0 1rem;
 }
@@ -65,8 +138,33 @@ button {
   }
 }
 
+/* Custom cursor - shows only on pointer: fine and when reduced-motion is off */
+.custom-cursor {
+  position: fixed;
+  pointer-events: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,95,162,0.95), rgba(244,194,122,0.45));
+  box-shadow: 0 8px 30px rgba(255,95,162,0.18);
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  transition: transform 120ms ease, width 120ms ease, height 120ms ease, background 120ms ease;
+  mix-blend-mode: screen;
+  display: none;
+}
+
+@media (pointer: fine) {
+  body:not(.reduced-motion) {
+    cursor: none;
+  }
+  .custom-cursor {
+    display: block;
+  }
+}
+
 .title {
-  font-size: clamp(2.25rem, 2.5vw, 4rem);
+  font-size: clamp(1.75rem, 2.2vw, 3rem);
   margin: 0;
   line-height: 1.05;
 }
@@ -104,9 +202,9 @@ a.secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  color: #be476e;
+  border: 1px solid rgba(255, 99, 152, 0.18);
   padding: 0.95rem 1.55rem;
   border-radius: 999px;
   text-decoration: none;
@@ -118,11 +216,11 @@ button.secondary:hover {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 142, 186, 0.2);
   border-radius: 28px;
   padding: 1.75rem;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 50px rgba(255, 119, 151, 0.15);
 }
 
 .grid {
@@ -130,16 +228,34 @@ button.secondary:hover {
   gap: 1.5rem;
 }
 
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2,
 .grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
+.grid-cols-4,
 .grid-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 960px) {
@@ -171,6 +287,20 @@ button.secondary:hover {
   color: white;
   padding: 1rem 1.15rem;
   outline: none;
+  appearance: none;
+  background-image: linear-gradient(135deg, #ffffff 25%, transparent 25%) no-repeat,
+                    linear-gradient(225deg, #ffffff 25%, transparent 25%) no-repeat;
+  background-position: calc(100% - 1rem) center, calc(100% - 0.55rem) center;
+  background-size: 0.45em 0.45em;
+}
+
+.select::-ms-expand {
+  display: none;
+}
+
+.select option {
+  background: #070812;
+  color: white;
 }
 
 .input:focus,
@@ -229,6 +359,19 @@ button.secondary:hover {
   padding: 3rem 0;
   text-align: center;
   color: #9e9eb2;
+  background: #fff3f5;
+}
+
+.board-panel {
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 170, 196, 0.3);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 30px 80px rgba(255, 145, 175, 0.12);
+}
+
+.swatch-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 160, 190, 0.35);
 }
 
 .status-pill {
@@ -240,12 +383,12 @@ button.secondary:hover {
 }
 
 .product-image {
-  border-radius: 28px;
+  border-radius: 20px;
   overflow: hidden;
-  min-height: 240px;
+  min-height: 180px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
 }
 
 /* Enhanced e-commerce styles */
@@ -260,7 +403,7 @@ nav {
 }
 
 .nav-brand {
-  font-size: 1.4rem;
+  font-size: 1.05rem;
   font-weight: 700;
   background: linear-gradient(135deg, #ff84cb, #7b5cff);
   -webkit-background-clip: text;
@@ -274,7 +417,7 @@ nav {
 }
 
 .nav-links {
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .nav-link {
@@ -322,9 +465,9 @@ nav {
 }
 
 .hero-text h1 {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
-  margin-bottom: 1.5rem;
-  line-height: 1.1;
+  font-size: clamp(2rem, 4.2vw, 3rem);
+  margin-bottom: 1.25rem;
+  line-height: 1.08;
 }
 
 .hero-text p {
@@ -335,14 +478,14 @@ nav {
 }
 
 .hero-visual {
-  border-radius: 32px;
+  border-radius: 28px;
   overflow: hidden;
   aspect-ratio: 1;
-  background: linear-gradient(135deg, rgba(255, 135, 198, 0.1), rgba(123, 92, 255, 0.1));
+  background: linear-gradient(135deg, rgba(255, 135, 198, 0.08), rgba(123, 92, 255, 0.08));
   display: grid;
   place-items: center;
-  border: 2px solid rgba(255, 135, 198, 0.2);
-  min-height: 400px;
+  border: 1px solid rgba(255, 135, 198, 0.16);
+  min-height: 320px;
 }
 
 .hero-buttons {
@@ -353,7 +496,7 @@ nav {
 
 .hero-buttons a,
 .hero-buttons button {
-  min-width: 170px;
+  min-width: 140px;
 }
 
 .theme-feature-grid {
@@ -406,12 +549,6 @@ nav {
   }
   .filter-select {
     min-width: 100%;
-  }
-  .cart-sidebar {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    margin-top: 2rem;
   }
   .cart-item {
     flex-direction: column;
@@ -528,12 +665,12 @@ nav {
   background: linear-gradient(135deg, #ff84cb, #7b5cff);
   color: white;
   border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 12px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 200ms ease;
+  font-size: 0.82rem;
+  transition: all 160ms ease;
   white-space: nowrap;
 }
 
@@ -622,8 +759,8 @@ nav {
   display: flex;
   gap: 1rem;
   max-width: 500px;
-  margin: 2rem auto;
-  flex-wrap: wrap;
+  font-size: 1.05rem;
+  font-weight: 700;
   justify-content: center;
 }
 
@@ -638,16 +775,63 @@ nav {
 
 /* Cart sidebar styling */
 .cart-sidebar {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
-  padding: 2rem;
-  position: sticky;
-  top: 100px;
-  max-height: calc(100vh - 120px);
+  background: rgba(7, 8, 18, 0.98);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 0 32px;
+  padding: 1.5rem;
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(420px, 100%);
+  max-width: 420px;
   overflow-y: auto;
-  width: 100%;
-  max-width: 440px;
+  box-shadow: -24px 0 80px rgba(0, 0, 0, 0.35);
+  z-index: 60;
+  transform: translateX(110%);
+  transition: transform 220ms ease, opacity 220ms ease;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-sidebar.cart-open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.cart-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 8, 18, 0.75);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+}
+
+.cart-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.cart-sidebar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: white;
+  cursor: pointer;
+}
+
+.cart-sidebar-empty {
+  color: #c5c8da;
+  margin-top: 1rem;
 }
 
 .cart-item {
@@ -678,6 +862,14 @@ nav {
 .cart-item-price {
   text-align: right;
   font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .cart-sidebar {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+  }
 }
 
 /* Category grid improvements */

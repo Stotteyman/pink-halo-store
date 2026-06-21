@@ -27,9 +27,9 @@ A polished ecommerce storefront built with React, Vite, and Netlify Functions. T
 - `netlify/functions/send-email.js` sends campaign or notification emails
 
 ### Data and persistence
-- `src/lib/products.ts` stores catalog data in localStorage with sample fallback
+- `src/lib/products.ts` stores catalog data in localStorage with sample fallback, and loads remote products when Supabase is configured
 - `src/lib/newsletter.ts` manages newsletter subscribers and Supabase integration hooks
-- Supabase environment variables are supported for persistent subscriber storage, but the app can run locally without them
+- Supabase environment variables are supported for persistent product and subscriber storage, but the app can run locally without them
 
 ## AI and dropshipping planning
 
