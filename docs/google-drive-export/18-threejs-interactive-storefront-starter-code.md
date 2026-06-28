@@ -13,7 +13,9 @@ PinkHalo.co should include a smooth interactive boutique experience that feels d
 ## Technical Priorities
 
 - Scene setup
-- Product display zones
+- Physical room geometry and doorways
+- Room-presence detection from camera position
+- Database-driven product display rails that remain empty without published inventory
 - Smooth transitions
 - Mobile controls
 - Product-card overlays
@@ -21,6 +23,11 @@ PinkHalo.co should include a smooth interactive boutique experience that feels d
 - Standard ecommerce fallback
 - Performance optimization
 - Accessibility and simple navigation
+- Fullscreen entry and confirmed physical/settings exit
 
 ## Rule
 The interactive experience should enhance shopping while keeping checkout simple and reliable.
+
+## Current Runtime Contract
+
+`PinkHaloScene.tsx` owns the room geometry, first-person controller, room detection, display fixtures, and front-door exit trigger. `HomePage.tsx` owns fullscreen entry, HUD, settings, confirmation, and the browser-close fallback. Product samples are disabled until a real published catalog is connected.

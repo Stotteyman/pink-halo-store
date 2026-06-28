@@ -1,6 +1,6 @@
 # Pink Halo Co. Store
 
-A polished ecommerce storefront built with React, Vite, and Netlify Functions. This project is designed to support a customer-facing store and an admin-driven product ingestion workflow similar to dropshipping platforms like AutoDS.
+A first-person, full-viewport boutique experience built with React, Three.js, Vite, and Netlify Functions. Visitors walk through physical departments instead of scrolling a conventional homepage.
 
 ## Updated Product Direction
 
@@ -10,9 +10,9 @@ The game-style menu must use real product, cart, order, customer, rewards, and r
 
 ## What this store includes
 
-- Modern homepage with category discovery and strong CTAs
-- Product grid for Men, Women, Children, and Pets
-- Search and filter controls
+- Fullscreen first-person entrance with mouse-look, keyboard, and touch movement
+- Separate walk-in rooms for Dresses, Tops, Lounge, Accessories, and Sale
+- A physical exit plus a settings menu with a confirmed quit flow
 - Product detail view and direct supplier links
 - Cart and Stripe-ready checkout flow
 - Admin panel for importing supplier links and product drafts
@@ -21,11 +21,14 @@ The game-style menu must use real product, cart, order, customer, rewards, and r
 - Planned game-style storefront menu
 - Planned customer accounts and saved shipping addresses
 - Planned rewards points and referral system
+- Empty-room behavior when no real published inventory source is connected
 
 ## Architecture and tools
 
 ### Frontend
-- `src/App.tsx` contains the main storefront and admin UX
+- `src/App.tsx` contains the storefront routing and admin UX
+- `src/components/three/PinkHaloScene.tsx` contains the walkable store, rooms, player controls, and exit trigger
+- `src/pages/HomePage.tsx` contains fullscreen entry, HUD, settings, and quit confirmation
 - `src/index.css` holds the visual design and responsive layout
 - React Router handles `Home` and `Admin` routes
 - Framer Motion is used for polished UI transitions
@@ -36,11 +39,19 @@ The game-style menu must use real product, cart, order, customer, rewards, and r
 - `netlify/functions/send-email.js` sends campaign or notification emails
 
 ### Data and persistence
-- `src/lib/products.ts` stores catalog data in localStorage with sample fallback, and loads remote products when Supabase is configured
+- `src/lib/products.ts` intentionally returns no storefront inventory until a real database-backed published catalog is connected; placeholder and local-only products are not customer-visible
 - `src/lib/newsletter.ts` manages newsletter subscribers and Supabase integration hooks
 - Supabase environment variables are supported for persistent product and subscriber storage, but the app can run locally without them
 
 ## Planning docs
+
+## Immersive storefront behavior
+
+- Entering the store requests browser fullscreen from the visitor's click.
+- Departments are real rooms. Crossing a doorway changes the current-room HUD; no altar or category-switch interaction is used.
+- Fixtures stay empty while the catalog is empty. Garments should only render from real published product records.
+- Walking to the front doors opens an exit confirmation. The Menu also exposes Quit Pink Halo.
+- Browsers only allow scripts to close tabs they opened. The app attempts to close after confirmation and shows a safe close-this-tab screen when the browser blocks it.
 
 This repository includes planning documentation for AI-powered product enrichment, product importing, the game-style storefront, customer accounts, rewards, and referrals:
 

@@ -554,3 +554,10 @@ The final result should feel like:
 NOT just a normal Shopify clone.
 
 The experience should emotionally impress users within the first 3 seconds through motion, lighting, elegance, and immersive interactions.
+# Current Experience Decision — June 28, 2026
+
+PinkHalo.co is a first-person place, not a traditional scrolling homepage. The visitor enters fullscreen, walks a central hall, and physically crosses doorways into separate Dresses, Tops, Lounge, Accessories, and Sale rooms. Category altars, portals, podiums, and click-to-switch category objects are not part of the current direction.
+
+Rooms contain fixtures, lighting, signage, and display systems. Merchandise may only appear when it comes from a real published inventory source. Because no production product database is connected, the customer-facing rooms must remain empty and must not expose sample, placeholder, or localStorage-only products.
+
+The front doors are the physical exit. Reaching them presents a confirmation. The settings menu also provides Quit. Entry requests browser fullscreen from a user gesture. Confirmed quit attempts to close the tab, with an explicit fallback because browsers can block scripts from closing tabs they did not open.

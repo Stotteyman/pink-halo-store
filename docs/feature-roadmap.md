@@ -5,13 +5,18 @@ Build a modern ecommerce storefront with a streamlined admin workflow and AI-pow
 
 ## Phase 1 — Launch MVP (High Priority)
 
-### 1. Core storefront experience
+### 1. Core immersive storefront experience
+
+- Full-viewport first-person store instead of a traditional scrolling homepage
+- Physical department rooms for Dresses, Tops, Lounge, Accessories, and Sale
+- Fullscreen entry, keyboard/mouse controls, touch controls, settings, and a physical exit
+- Empty fixtures until real published inventory exists
 - Modern home page with hero section and strong CTAs
 - Category browsing tiles for Men, Women, Children, and Pets
 - Product listing grid with clear pricing, stock labels, and add-to-cart actions
 - Search + filter controls for product discovery
 - Trust and promotion section with shipping, deals, and checkout reassurance
-- Sticky navigation and anchor-based CTAs for fast product access
+- Compact in-world HUD and persistent bag access
 
 ### 2. Shopping flow
 - Cart summary UI with subtotal and profit metrics

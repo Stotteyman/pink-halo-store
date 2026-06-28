@@ -1,270 +1,158 @@
-import { useState, useMemo, Suspense } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Suspense, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import PinkHaloScene, { type TouchMovement } from '../components/three/PinkHaloScene';
 import { Product } from '../lib/types';
-import { slugify, formatCurrency, truncate } from '../lib/utils';
-import PinkHaloScene from '../components/three/PinkHaloScene';
 
-interface HomePageProps {
-  products: Product[];
-}
+interface HomePageProps { products: Product[]; }
 
-const CATEGORIES = [
-  { name: 'Dresses',     emoji: '👗', desc: 'From brunch to date night' },
-  { name: 'Tops',        emoji: '✨', desc: 'Effortlessly elevated basics' },
-  { name: 'Lounge',      emoji: '🤍', desc: 'Cozy-chic comfort sets' },
-  { name: 'Accessories', emoji: '💛', desc: 'Finish the look' },
-  { name: 'New Arrivals', emoji: '🌸', desc: 'Fresh drops just landed', link: '/new-arrivals' },
-  { name: 'Sale',        emoji: '🏷️', desc: 'Boutique finds, better prices' },
+const DIRECTIONS: { key: keyof TouchMovement; label: string; className: string }[] = [
+  { key: 'forward', label: 'UP', className: 'world-control-up' },
+  { key: 'left', label: 'LT', className: 'world-control-left' },
+  { key: 'backward', label: 'DN', className: 'world-control-down' },
+  { key: 'right', label: 'RT', className: 'world-control-right' },
 ];
 
 function SceneLoader() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0d0010]">
-      <div className="text-center">
-        <div className="w-12 h-12 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-pink-300 text-sm tracking-widest uppercase">Loading Pink Halo</p>
-      </div>
-    </div>
-  );
+  return <div className="world-loader"><div className="world-loader-halo" /><p>Opening the doors</p></div>;
 }
 
 export default function HomePage({ products }: HomePageProps) {
-  const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
-  const filteredProducts = useMemo(() => {
-    if (!search) return products;
-    return products.filter(p =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.description.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [products, search]);
+  const movement = useRef<TouchMovement>({ forward: false, backward: false, left: false, right: false });
+  const [entered, setEntered] = useState(false);
+  const [room, setRoom] = useState<string | null>(null);
+  const [atExit, setAtExit] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
+  const [closeBlocked, setCloseBlocked] = useState(false);
 
-  const newArrivals = products.slice(0, 4);
-  const bestSellers = products.slice(4, 8);
+  const enterStore = async () => {
+    setEntered(true);
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    } catch {
+      // Fullscreen can be denied by browser or OS policy; the fixed viewport remains usable.
+    }
+  };
 
-  function handleCategoryClick(category: string) {
-    navigate(`/category/${category.toLowerCase()}`);
-  }
+  const quitStore = async () => {
+    setConfirmExit(false);
+    setSettingsOpen(false);
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      // Continue to the browser close attempt.
+    }
+    window.close();
+    window.setTimeout(() => setCloseBlocked(true), 180);
+  };
 
-  function handleSubscribe(e: React.FormEvent) {
-    e.preventDefault();
-    if (email) setSubscribed(true);
-  }
+  const returnToFullscreen = async () => {
+    try { await document.documentElement.requestFullscreen(); } catch { /* browser policy */ }
+  };
 
-  function scrollToShop() {
-    document.getElementById('shop-section')?.scrollIntoView({ behavior: 'smooth' });
-  }
+  const setMoving = (key: keyof TouchMovement, value: boolean) => { movement.current[key] = value; };
 
   return (
-    <div className="flex-1">
+    <div className="world-shell">
+      <Suspense fallback={<SceneLoader />}>
+        <PinkHaloScene
+          active={entered && !settingsOpen && !confirmExit}
+          products={products}
+          movement={movement}
+          onRoomChange={setRoom}
+          onExitChange={setAtExit}
+        />
+      </Suspense>
 
-      {/* ── 3D Hero Canvas ── */}
-      <section className="relative w-full" style={{ height: '100vh' }}>
-        <Suspense fallback={<SceneLoader />}>
-          <PinkHaloScene onCategoryClick={handleCategoryClick} />
-        </Suspense>
-
-        {/* Overlay: scroll hint at bottom */}
-        <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 pointer-events-none">
-          <p className="text-pink-200/70 text-xs uppercase tracking-[0.3em]">Click a category · Scroll to shop</p>
-          <div className="w-0.5 h-8 bg-gradient-to-b from-pink-400/60 to-transparent animate-pulse" />
+      <header className="world-brandbar">
+        <div className="world-wordmark"><span>Wear your halo</span><strong>Pink Halo</strong></div>
+        <div className="world-actions">
+          <button type="button" onClick={() => { document.exitPointerLock?.(); setSettingsOpen(true); }}>Menu</button>
+          <Link to="/cart">Bag</Link>
         </div>
+      </header>
 
-        {/* Overlay: top-right CTA buttons */}
-        <div className="absolute top-6 right-6 flex flex-col sm:flex-row gap-3 pointer-events-auto">
-          <button
-            onClick={scrollToShop}
-            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-pink-400/40 text-white backdrop-blur-sm rounded-full text-sm font-medium transition"
-          >
-            Shop All
-          </button>
-          <Link
-            to="/new-arrivals"
-            className="px-5 py-2.5 bg-pink-600/80 hover:bg-pink-500 text-white backdrop-blur-sm rounded-full text-sm font-semibold transition shadow-lg shadow-pink-900/50"
-          >
-            New Arrivals ✨
-          </Link>
-        </div>
-
-        {/* Overlay: bottom gradient fade into content */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-[#fff3ee] pointer-events-none" />
-      </section>
-
-      {/* ── Shop by Style ── */}
-      <section id="shop-section" className="px-4 py-14 max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <p className="text-xs uppercase tracking-widest text-pink-400 mb-1">Explore</p>
-          <h2 className="text-3xl font-serif font-bold text-pink-900">Shop by Style</h2>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {CATEGORIES.map(cat => (
-            <Link
-              key={cat.name}
-              to={cat.link ?? `/category/${cat.name.toLowerCase()}`}
-              className="group flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-pink-100 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-center"
-            >
-              <span className="text-3xl">{cat.emoji}</span>
-              <span className="font-semibold text-pink-900 text-sm">{cat.name}</span>
-              <span className="text-xs text-pink-500 leading-snug">{cat.desc}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ── New Arrivals ── */}
-      {newArrivals.length > 0 && (
-        <section className="px-4 py-10 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-serif font-bold text-pink-900">New Arrivals</h2>
-            <Link to="/new-arrivals" className="text-sm text-pink-600 hover:text-pink-800 font-medium transition">View all →</Link>
+      {entered && (
+        <>
+          <div className="world-crosshair" aria-hidden="true"><i /><i /></div>
+          <div className="world-status">
+            <span className="world-status-dot" />
+            <div><small>Now exploring</small><strong>{room ?? 'The Main Hall'}</strong></div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {newArrivals.map(p => <ProductCard key={p.id} product={p} />)}
+          <div className="world-minimap" aria-label="Store map">
+            <span className="map-title">Store map</span><i className="map-you" />
+            <span className="map-zone map-dresses">Dresses</span><span className="map-zone map-tops">Tops</span>
+            <span className="map-zone map-lounge">Lounge</span><span className="map-zone map-accessories">Accessories</span>
+            <span className="map-zone map-sale">Sale</span><span className="map-zone map-exit">Exit</span>
           </div>
-        </section>
-      )}
-
-      {/* ── Feature Banner ── */}
-      <section className="px-4 py-10">
-        <div className="max-w-7xl mx-auto rounded-3xl overflow-hidden relative"
-          style={{ background: 'radial-gradient(ellipse at 30% 50%, #2d0030 0%, #0d0010 70%)' }}>
-          <div className="absolute inset-0 opacity-30"
-            style={{ backgroundImage: 'radial-gradient(circle at 70% 50%, #ff4499 0%, transparent 50%)' }} />
-          <div className="relative px-8 sm:px-14 py-14 text-center sm:text-left">
-            <p className="text-xs uppercase tracking-widest text-pink-300 mb-2">Wear Your Halo</p>
-            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white mb-3 max-w-lg">
-              Every piece, curated for you.
-            </h2>
-            <p className="text-pink-200 mb-7 max-w-md">
-              New feminine styles drop every week. Sign up to be the first to shop.
-            </p>
-            <Link
-              to="/shop"
-              className="inline-block px-8 py-3 bg-pink-500 hover:bg-pink-400 text-white rounded-full font-semibold transition shadow-lg shadow-pink-900/60"
-            >
-              Browse the Collection
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Best Sellers ── */}
-      {bestSellers.length > 0 && (
-        <section className="px-4 py-10 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-serif font-bold text-pink-900">Best Sellers</h2>
-            <Link to="/shop" className="text-sm text-pink-600 hover:text-pink-800 font-medium transition">Shop all →</Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bestSellers.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
-        </section>
-      )}
-
-      {/* ── All Products / Search ── */}
-      <section className="px-4 py-10 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-serif font-bold text-pink-900">All Products</h2>
-          <input
-            type="text"
-            placeholder="Search items..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full sm:w-72 px-4 py-2.5 border border-pink-200 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm bg-white"
-          />
-        </div>
-        {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
-        ) : (
-          <div className="text-center py-16">
-            <p className="text-5xl mb-4">🌸</p>
-            <p className="text-pink-600 text-lg">No items found. Try a different search.</p>
-          </div>
-        )}
-      </section>
-
-      {/* ── Testimonials ── */}
-      <section className="px-4 py-12 bg-pink-50/60">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-serif font-bold text-pink-900 mb-8">What Our Customers Say</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { quote: 'The quality blew me away. I ordered two dresses and both fit perfectly.', name: 'Jasmine R.' },
-              { quote: 'Fast shipping and the packaging was so pretty — felt like a gift to myself!', name: 'Maya T.' },
-              { quote: 'Pink Halo is my go-to for anything elegant and feminine. Love this boutique.', name: 'Sophia K.' },
-            ].map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-pink-100 text-left shadow-sm">
-                <p className="text-pink-400 text-lg mb-1">★★★★★</p>
-                <p className="text-pink-800 text-sm italic mb-3">"{t.quote}"</p>
-                <p className="text-pink-500 text-xs font-semibold">— {t.name}</p>
-              </div>
+          {atExit && (
+            <button type="button" className="world-exit-prompt" onClick={() => { document.exitPointerLock?.(); setConfirmExit(true); }}>
+              <span>Front doors</span><strong>Leave the store</strong>
+            </button>
+          )}
+          <div className="world-touch-controls" aria-label="Movement controls">
+            {DIRECTIONS.map(direction => (
+              <button type="button" key={direction.key} className={direction.className} aria-label={`Move ${direction.key}`}
+                onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); setMoving(direction.key, true); }}
+                onPointerUp={() => setMoving(direction.key, false)} onPointerCancel={() => setMoving(direction.key, false)}
+                onPointerLeave={() => setMoving(direction.key, false)}>{direction.label}</button>
             ))}
           </div>
-        </div>
-      </section>
+        </>
+      )}
 
-      {/* ── Email Signup ── */}
-      <section className="px-4 py-16 max-w-2xl mx-auto text-center">
-        <p className="text-xs uppercase tracking-widest text-pink-400 mb-2">Join the Halo</p>
-        <h2 className="text-3xl font-serif font-bold text-pink-900 mb-2">Get 10% off your first order</h2>
-        <p className="text-pink-600 mb-7">Sign up for exclusive drops, style tips, and Halo Points rewards.</p>
-        {subscribed ? (
-          <p className="text-pink-700 font-semibold text-lg">✨ You're in! Welcome to the Halo. Check your email.</p>
-        ) : (
-          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 justify-center">
-            <input
-              type="email"
-              placeholder="Your email address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="flex-1 px-5 py-3 border border-pink-200 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm bg-white"
-            />
-            <button
-              type="submit"
-              className="px-7 py-3 bg-pink-900 hover:bg-pink-800 text-white rounded-full font-semibold transition whitespace-nowrap"
-            >
-              Join Now
-            </button>
-          </form>
-        )}
-      </section>
+      {!entered && (
+        <div className="world-welcome">
+          <div className="world-welcome-card">
+            <span className="world-eyebrow">The doors are open</span>
+            <h1>This isn't a page.<br /><em>It's a place.</em></h1>
+            <p>Step inside Pink Halo. Walk through real departments and discover the collection as it arrives.</p>
+            <button type="button" onClick={enterStore}>Enter the store <span>-&gt;</span></button>
+            <small>Entering opens the store in fullscreen</small>
+          </div>
+          <div className="world-welcome-controls">
+            <span><kbd>W A S D</kbd> to walk</span><span><i className="mouse-icon" /> mouse to look</span>
+            <span>Walk through a doorway to explore</span>
+          </div>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="world-help" role="dialog" aria-modal="true" aria-label="Store menu">
+          <button className="world-help-backdrop" onClick={() => setSettingsOpen(false)} aria-label="Close menu" />
+          <div className="world-help-card">
+            <button className="world-help-close" onClick={() => setSettingsOpen(false)} aria-label="Close">X</button>
+            <span className="world-eyebrow">Store menu</span><h2>Pause and settings</h2>
+            <p><kbd>W A S D</kbd> or arrow keys to walk. Move your mouse to look around. Walk directly through department doorways.</p>
+            <div className="world-menu-actions">
+              {!document.fullscreenElement && <button type="button" onClick={returnToFullscreen}>Return to fullscreen</button>}
+              <button type="button" className="world-menu-quit" onClick={() => setConfirmExit(true)}>Quit Pink Halo</button>
+            </div>
+            <p className="world-help-note">Press Esc to release your mouse. Use Menu to resume or quit.</p>
+          </div>
+        </div>
+      )}
+
+      {confirmExit && (
+        <div className="world-help" role="alertdialog" aria-modal="true" aria-label="Confirm exit">
+          <button className="world-help-backdrop" onClick={() => setConfirmExit(false)} aria-label="Cancel exit" />
+          <div className="world-help-card world-exit-card">
+            <span className="world-eyebrow">Leaving Pink Halo</span><h2>Ready to step outside?</h2>
+            <p>Your visit will end and Pink Halo will attempt to close this browser tab.</p>
+            <div className="world-confirm-actions">
+              <button type="button" onClick={() => setConfirmExit(false)}>Stay in store</button>
+              <button type="button" className="world-menu-quit" onClick={quitStore}>Leave and close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {closeBlocked && (
+        <div className="world-closed">
+          <div><span className="world-eyebrow">Visit complete</span><h2>Pink Halo is closed.</h2>
+            <p>Your browser prevented this tab from closing automatically. You can safely close it now.</p></div>
+        </div>
+      )}
     </div>
-  );
-}
-
-function ProductCard({ product }: { product: Product }) {
-  return (
-    <Link
-      to={`/${product.category.toLowerCase()}/${slugify(product.name)}`}
-      className="group border border-pink-100 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white"
-    >
-      <div className="bg-gray-50 h-56 overflow-hidden">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-      </div>
-      <div className="p-4">
-        <p className="text-xs text-pink-400 uppercase tracking-wider mb-1">{product.category}</p>
-        <h3 className="font-semibold text-pink-900 group-hover:text-pink-600 transition leading-snug">
-          {product.name}
-        </h3>
-        <p className="text-sm text-pink-500 mt-1">{truncate(product.description, 60)}</p>
-        <div className="flex items-center justify-between mt-3">
-          <span className="font-bold text-pink-900">{formatCurrency(product.price)}</span>
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-            product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-          }`}>
-            {product.stock > 0 ? 'In Stock' : 'Sold Out'}
-          </span>
-        </div>
-      </div>
-    </Link>
   );
 }

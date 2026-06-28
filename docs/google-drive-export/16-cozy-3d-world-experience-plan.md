@@ -13,7 +13,8 @@ The store should feel like a soft, cozy, feminine boutique world. The experience
 ## Core Features
 
 - Three.js powered interactive boutique
-- Product displays that open real product cards
+- Separate walk-in department rooms with matching fixtures
+- Product displays populated only from real published inventory
 - Smooth transitions
 - Mobile-friendly controls
 - Standard shopping fallback
@@ -21,3 +22,9 @@ The store should feel like a soft, cozy, feminine boutique world. The experience
 
 ## Design Rule
 The 3D world should support sales, not distract from them. Customers must always be able to browse products normally.
+
+## Current Implementation Decision
+
+The store uses a central hall with five physical departments: Dresses, Tops, Lounge, Accessories, and Sale. Visitors walk through doors; there are no category altars, podiums, pedestals, or proximity-based category switches.
+
+No production catalog database is connected, so all racks remain empty. Fullscreen is requested on entry. The front doors and settings menu share a confirmed quit flow that attempts to close the tab and falls back to an explicit visit-complete screen when browser security blocks closing.

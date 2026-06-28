@@ -8,8 +8,8 @@ This document defines the website experience and technical direction for PinkHal
 ## Website Goal
 PinkHalo.co should feel like a polished boutique store that is easy to shop on mobile. The website should help visitors browse products, learn the brand, add items to cart, and complete checkout with as little friction as possible.
 
-## Homepage Sections
-Hero section, new arrivals, best sellers, shop by collection, customer reviews, outfit bundles, social media gallery, and email signup.
+## Entrance Experience
+The root route is a full-viewport first-person boutique. It does not use a conventional scrolling homepage. Entering requests fullscreen and places the visitor in a central hall.
 
 ## Main Pages
 Home, Shop All, New Arrivals, Dresses, Tops, Lounge, Accessories, Sale, Rewards, About, Contact, FAQ, Shipping, Returns, Size Guide, Account, Cart, and Checkout.
@@ -33,7 +33,13 @@ The admin dashboard should show orders, revenue, conversion rate, popular produc
 The website must make it easy for a visitor to understand the brand, find a product, trust the store, and complete checkout quickly.
 
 ## Interactive Store Direction
-The interactive store should feel like a cozy boutique world instead of a confusing game. Customers should be able to move through a soft pink boutique environment, click product displays, open product cards, save items, add to cart, and return to normal shopping at any time.
+The interactive store is organized as separate physical rooms for Dresses, Tops, Lounge, Accessories, and Sale. Visitors cross real doorways; category altars, podiums, and click-to-switch portals are not used. Each room has matching fixtures and may display merchandise only when real published inventory exists.
+
+## Current Inventory State
+No production product database is connected. The customer storefront must remain empty and must not expose samples, placeholder products, localStorage drafts, fake prices, or fake stock.
+
+## Fullscreen and Exit
+Enter Store requests fullscreen from the visitor's click. The front doors are the physical exit, and Menu includes Quit. Both require confirmation before the app exits fullscreen and attempts to close the tab. If browser security blocks closing, show a visit-complete fallback.
 
 ## User Experience Rule
 The immersive shopping feature should never block normal shopping. A visitor should always have a simple Shop button, search, filters, cart, and checkout.

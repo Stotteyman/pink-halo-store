@@ -15,6 +15,7 @@ Every major business document in Google Drive should have a matching technical o
 - `docs/database-architecture.md` — database entities and accuracy rules.
 - `docs/google-drive-sync.md` — how Google Drive and GitHub stay aligned.
 - `docs/product-pipeline.md` — idea-to-product-to-sale workflow.
+- `docs/immersive-storefront.md` — current first-person store, room, inventory, fullscreen, and exit contract.
 - `docs/admin-dashboard.md` — admin dashboard requirements.
 
 ## Operating Principle

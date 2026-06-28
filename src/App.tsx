@@ -49,15 +49,15 @@ function App() {
   }, [cart]);
 
   useEffect(() => {
-    async function loadProducts() {
+    async function initializeProducts() {
       try {
-        // TODO: Replace with actual Supabase fetch
+        // Inventory remains empty until a real database-backed catalog is connected.
         setProducts([]);
       } catch (error) {
         console.error('Failed to load products', error);
       }
     }
-    loadProducts();
+    initializeProducts();
   }, []);
 
   const cartCount = useMemo(() => {
@@ -65,6 +65,7 @@ function App() {
   }, [cart]);
 
   const isAdmin = location.pathname.startsWith('/admin');
+  const isWorld = location.pathname === '/';
   const DARK_PAGES = ['/about', '/contact', '/faq', '/shipping', '/returns', '/size-guide', '/rewards'];
   const isDarkPage = DARK_PAGES.some(p => location.pathname === p);
 
@@ -80,9 +81,9 @@ function App() {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(255,95,162,0.12),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(248,200,220,0.14),transparent_18%),linear-gradient(180deg,#fff3ee_0%,#ffe7f0_50%,#fff9fb_100%)] text-[#3D2A3D] flex flex-col">
-      <CustomCursor />
-      {!isAdmin && <Header cartCount={cartCount} dark={isDarkPage} />}
+    <div className={`${isWorld ? 'h-[100dvh] overflow-hidden bg-[#130a0f]' : 'min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(255,95,162,0.12),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(248,200,220,0.14),transparent_18%),linear-gradient(180deg,#fff3ee_0%,#ffe7f0_50%,#fff9fb_100%)]'} text-[#3D2A3D] flex flex-col`}>
+      {!isWorld && <CustomCursor />}
+      {!isAdmin && !isWorld && <Header cartCount={cartCount} dark={isDarkPage} />}
 
       <main className="flex-1">
         <Routes>
@@ -115,7 +116,7 @@ function App() {
         </Routes>
       </main>
 
-      {!isAdmin && <Footer />}
+      {!isAdmin && !isWorld && <Footer />}
 
       {notification && (
         <div className="fixed bottom-4 right-4 bg-pink-500 text-white px-6 py-3 rounded-full shadow-lg z-50">

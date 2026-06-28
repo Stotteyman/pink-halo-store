@@ -22,3 +22,7 @@ Review whether the website, database, admin dashboard, product flow, checkout, s
 
 ## Core Rule
 Every important user action and admin action should map to a real database record so the business can track accurate numbers.
+
+## Storefront Truth Rule
+
+The 3D scene may render rooms and empty fixtures without a database, but it may not render sellable merchandise, prices, stock, or product interactions from samples or local-only data. Real published inventory is a launch prerequisite for merchandise displays.
