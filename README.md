@@ -2,6 +2,12 @@
 
 A polished ecommerce storefront built with React, Vite, and Netlify Functions. This project is designed to support a customer-facing store and an admin-driven product ingestion workflow similar to dropshipping platforms like AutoDS.
 
+## Updated Product Direction
+
+Pink Halo should evolve into a video-game-inspired shopping experience. The customer-facing store should include a cozy boutique game menu with categories, item cards, product images, prices, Add to Cart, Buy Now, account login, saved shipping information, rewards points, and referral features.
+
+The game-style menu must use real product, cart, order, customer, rewards, and referral data. It should not replace standard ecommerce basics; it should make the store feel more memorable while keeping checkout fast and simple.
+
 ## What this store includes
 
 - Modern homepage with category discovery and strong CTAs
@@ -12,6 +18,9 @@ A polished ecommerce storefront built with React, Vite, and Netlify Functions. T
 - Admin panel for importing supplier links and product drafts
 - Newsletter subscription and campaign management
 - Inventory overview and profit metrics
+- Planned game-style storefront menu
+- Planned customer accounts and saved shipping addresses
+- Planned rewards points and referral system
 
 ## Architecture and tools
 
@@ -31,12 +40,14 @@ A polished ecommerce storefront built with React, Vite, and Netlify Functions. T
 - `src/lib/newsletter.ts` manages newsletter subscribers and Supabase integration hooks
 - Supabase environment variables are supported for persistent product and subscriber storage, but the app can run locally without them
 
-## AI and dropshipping planning
+## Planning docs
 
-This repository now includes planning documentation for AI-powered product enrichment and an AutoDS-style import system:
+This repository includes planning documentation for AI-powered product enrichment, product importing, the game-style storefront, customer accounts, rewards, and referrals:
 
 - `docs/feature-roadmap.md` — prioritized feature list and roadmap milestones
 - `docs/ai-autods-plan.md` — AI use cases, ingestion workflow, and system architecture for dropshipping-style automation
+- `docs/game-menu-storefront.md` — video game menu storefront specification
+- `docs/accounts-rewards-referrals.md` — account, saved shipping, rewards, and referral specification
 
 ## Local development
 
@@ -101,3 +112,5 @@ Open `/admin` to use the product ingestion workflow, review imported products, m
 
 - Use `docs/feature-roadmap.md` to track prioritized milestones and build phases
 - Use `docs/ai-autods-plan.md` to guide AI integration and supplier ingestion workflows
+- Use `docs/game-menu-storefront.md` to guide the interactive shopping menu build
+- Use `docs/accounts-rewards-referrals.md` to guide customer accounts, saved shipping, rewards, and referrals
