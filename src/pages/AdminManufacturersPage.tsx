@@ -158,8 +158,11 @@ export default function AdminManufacturersPage() {
 
   return (
     <div>
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Manufacturers</h1>
+        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">Manufacturers</h1>
+            <p className="text-sm text-gray-500">Suppliers, sourcing, and print-on-demand partners.</p>
+          </div>
           <button onClick={openNew} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium">
             + Add Manufacturer
           </button>
