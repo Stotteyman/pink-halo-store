@@ -326,7 +326,7 @@ function roomAt(x: number, z: number): string | null {
   return null;
 }
 
-function Player({ active, movement, onRoomChange, onExitChange, onNpcFocus, onNpcInteract, onDonationFocus, onDonationInteract, onPlayerPosition, onFootstep, onStep }: Omit<PinkHaloSceneProps, 'products'>) {
+function Player({ active, movement, initialPosition, onRoomChange, onExitChange, onNpcFocus, onNpcInteract, onDonationFocus, onDonationInteract, onPlayerPosition, onFootstep, onStep }: Omit<PinkHaloSceneProps, 'products'>) {
   const { camera, gl } = useThree();
   const keys = useRef<Record<string, boolean>>({});
   const yaw = useRef(0);
@@ -340,7 +340,11 @@ function Player({ active, movement, onRoomChange, onExitChange, onNpcFocus, onNp
   const positionReportElapsed = useRef(0);
   const stepDistance = useRef(0);
 
-  useEffect(() => { camera.position.set(0, 1.65, 7.4); camera.rotation.order = 'YXZ'; }, [camera]);
+  useEffect(() => {
+    camera.position.set(initialPosition?.x ?? 0, 1.65, initialPosition?.z ?? 7.4);
+    camera.rotation.order = 'YXZ';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera]);
   useEffect(() => {
     if (!active) return;
     const canvas = gl.domElement;
@@ -490,6 +494,7 @@ interface PinkHaloSceneProps {
   active: boolean;
   products: Product[];
   movement: MutableRefObject<TouchMovement>;
+  initialPosition?: { x: number; z: number };
   onRoomChange: (name: string | null) => void;
   onExitChange: (near: boolean) => void;
   onNpcFocus: (category: Product['category'] | null, label: string | null) => void;
@@ -514,6 +519,7 @@ function StoreScene(props: PinkHaloSceneProps) {
       <Player
         active={props.active}
         movement={props.movement}
+        initialPosition={props.initialPosition}
         onRoomChange={props.onRoomChange}
         onExitChange={props.onExitChange}
         onNpcFocus={props.onNpcFocus}
@@ -530,5 +536,6 @@ function StoreScene(props: PinkHaloSceneProps) {
 
 export default function PinkHaloScene(props: PinkHaloSceneProps) {
   const gl = useMemo(() => ({ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.12 }), []);
-  return <Canvas className="world-canvas" camera={{ position: [0, 1.65, 7.4], fov: 68, near: 0.05, far: 65 }} gl={gl} dpr={[1, 1.6]} shadows><StoreScene {...props} /></Canvas>;
+  const startPosition: [number, number, number] = [props.initialPosition?.x ?? 0, 1.65, props.initialPosition?.z ?? 7.4];
+  return <Canvas className="world-canvas" camera={{ position: startPosition, fov: 68, near: 0.05, far: 65 }} gl={gl} dpr={[1, 1.6]} shadows><StoreScene {...props} /></Canvas>;
 }

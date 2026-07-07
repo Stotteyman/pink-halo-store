@@ -52,14 +52,15 @@ export async function handler(event) {
       return json(400, { error: 'user_id and role are required' });
     }
 
-    const allowed = ['customer', 'staff', 'manager', 'admin'];
+    const allowed = ['customer', 'staff', 'manager', 'admin', 'superadmin'];
     if (!allowed.includes(role)) {
       return json(400, { error: 'Invalid role' });
     }
 
-    // Only admins can assign admin.
-    if (role === 'admin' && !hasRole(auth.role, 'admin')) {
-      return json(403, { error: 'Admin role can only be assigned by admin users' });
+    // Assigning a role requires at least that role's own privilege level,
+    // so nobody can grant a role higher than the one they hold.
+    if (!hasRole(auth.role, role)) {
+      return json(403, { error: `Only ${role} users or higher can assign the ${role} role` });
     }
 
     const { data, error } = await db

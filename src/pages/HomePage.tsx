@@ -31,13 +31,38 @@ const DIRECTIONS: { key: keyof TouchMovement; label: string; className: string }
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
+const POSITION_KEY = 'pink-halo-session-position';
+
+// Kept in sessionStorage (not localStorage) so it survives a same-tab round
+// trip to Stripe Checkout and back, but clears once the tab actually closes
+// or the player deliberately exits the store.
+function loadSessionPosition(): { x: number; z: number } | null {
+  try {
+    const raw = sessionStorage.getItem(POSITION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.x === 'number' && typeof parsed?.z === 'number' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSessionPosition(x: number, z: number) {
+  try { sessionStorage.setItem(POSITION_KEY, JSON.stringify({ x, z })); } catch { /* storage unavailable */ }
+}
+
+function clearSessionPosition() {
+  try { sessionStorage.removeItem(POSITION_KEY); } catch { /* storage unavailable */ }
+}
+
 function SceneLoader() {
   return <div className="world-loader"><div className="world-loader-halo" /><p>Opening the doors</p></div>;
 }
 
 export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity, onRemoveFromCart, onCheckout, onDonate }: HomePageProps) {
   const movement = useRef<TouchMovement>({ forward: false, backward: false, left: false, right: false });
-  const [entered, setEntered] = useState(false);
+  const resumedPosition = useMemo(() => loadSessionPosition(), []);
+  const [entered, setEntered] = useState(() => Boolean(resumedPosition));
   const [room, setRoom] = useState<string | null>(null);
   const [atExit, setAtExit] = useState(false);
   const [screen, setScreen] = useState<GameScreen>(null);
@@ -50,7 +75,7 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
   const [donationAmount, setDonationAmount] = useState(10);
   const [donationStatus, setDonationStatus] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
-  const [playerPosition, setPlayerPosition] = useState({ x: 0, z: 7.4 });
+  const [playerPosition, setPlayerPosition] = useState(() => resumedPosition ?? { x: 0, z: 7.4 });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [guestChosen, setGuestChosen] = useState(() => sessionStorage.getItem('pink-halo-guest') === 'true');
   const [, setStepsTaken] = useState(0);
@@ -89,15 +114,18 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
 
   useEffect(() => {
     if (!entered) return;
-    // Escape already exits pointer lock natively; also close whatever dialog is
-    // open so the store doesn't stay paused behind an invisible menu.
-    const closeOnEscape = (event: KeyboardEvent) => {
+    // The browser exits pointer lock (and, if active, fullscreen) on Escape no
+    // matter what we do here — that part can't be intercepted. What we control
+    // is our own overlay state: close whatever's open, or open the pause menu
+    // if nothing was, so Escape always lands somewhere useful.
+    const onEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (screen !== null) closeScreen();
       else if (confirmExit) cancelExit();
+      else openScreen('menu');
     };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
   }, [entered, screen, confirmExit]);
 
   useEffect(() => {
@@ -163,6 +191,7 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
   const quitStore = async () => {
     setConfirmExit(false);
     setScreen(null);
+    clearSessionPosition();
     try { if (document.fullscreenElement) await document.exitFullscreen(); } catch { /* continue */ }
     window.close();
     window.setTimeout(() => setCloseBlocked(true), 180);
@@ -222,13 +251,14 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
           active={entered && !paused}
           products={products}
           movement={movement}
+          initialPosition={resumedPosition ?? undefined}
           onRoomChange={setRoom}
           onExitChange={setAtExit}
           onNpcFocus={(category, label) => { setFocusedNpcCategory(category); setFocusedNpcLabel(label); }}
           onNpcInteract={(category) => openShop(category)}
           onDonationFocus={setDonationFocused}
           onDonationInteract={() => openScreen('donation')}
-          onPlayerPosition={(x, z) => setPlayerPosition({ x, z })}
+          onPlayerPosition={(x, z) => { setPlayerPosition({ x, z }); saveSessionPosition(x, z); }}
           onFootstep={playFootstep}
           onStep={registerStep}
         />
