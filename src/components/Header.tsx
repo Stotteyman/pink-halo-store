@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 interface HeaderProps {
   cartCount: number;
   dark?: boolean;
+  onToggleCart?: () => void;
 }
 
 const CATEGORIES = ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
 
-export default function Header({ cartCount, dark = false }: HeaderProps) {
+export default function Header({ cartCount, dark = false, onToggleCart }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -74,7 +75,9 @@ export default function Header({ cartCount, dark = false }: HeaderProps) {
               <NavLink to="/about" dark={dark} className="hidden lg:block text-sm">About</NavLink>
               <NavLink to="/contact" dark={dark} className="hidden lg:block text-sm">Contact</NavLink>
 
-              <Link to="/cart"
+              <button
+                type="button"
+                onClick={onToggleCart}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300"
                 style={{
                   background: dark ? 'rgba(255,95,160,0.25)' : 'rgba(252,231,243,0.9)',
@@ -87,7 +90,7 @@ export default function Header({ cartCount, dark = false }: HeaderProps) {
                     {cartCount}
                   </span>
                 )}
-              </Link>
+              </button>
 
               {/* Mobile toggle */}
               <button

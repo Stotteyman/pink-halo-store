@@ -75,6 +75,14 @@ This repository includes planning documentation for AI-powered product enrichmen
    http://localhost:4173
    ```
 
+If you use admin APIs locally, also run Netlify Functions so `/api/*` endpoints resolve:
+
+```bash
+npx netlify dev
+```
+
+You can keep Vite on 4173 and Netlify Functions on 8888. The Vite config proxies `/api/*` to `http://127.0.0.1:8888` by default.
+
 ## Deployment
 
 1. Connect the repository to Netlify.
@@ -90,6 +98,7 @@ This repository includes planning documentation for AI-powered product enrichmen
    - `EMAIL_FROM`
    - `VITE_SUPABASE_URL` (optional)
    - `VITE_SUPABASE_ANON_KEY` (optional)
+   - `SUPABASE_SCHEMA` (optional, defaults to `public`)
 3. Deploy the site.
 
 ## Local Stripe setup
@@ -111,6 +120,7 @@ EMAIL_SMTP_PASSWORD=
 EMAIL_FROM=
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+SUPABASE_SCHEMA=public
 ```
 
 The frontend uses `VITE_STRIPE_PUBLISHABLE_KEY` for Stripe checkout redirects, while the serverless checkout function reads `STRIPE_SECRET_KEY`.

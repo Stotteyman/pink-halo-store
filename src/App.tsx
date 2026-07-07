@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
 import Header from './components/Header';
 import AnimatedHero from './components/AnimatedHero';
 import CategoryGrid from './components/CategoryGrid';
@@ -9,10 +8,20 @@ import ProductCard from './components/ProductCard';
 import ProductDetail from './components/ProductDetail';
 import NotFound from './components/NotFound';
 import Footer from './components/Footer';
+import AdminLayout from './components/AdminLayout';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminProductsPage from './pages/AdminProductsPage';
+import AdminAddProductPage from './pages/AdminAddProductPage';
+import AdminEditProductPage from './pages/AdminEditProductPage';
+import AdminOrdersPage from './pages/AdminOrdersPage';
+import AdminManufacturersPage from './pages/AdminManufacturersPage';
 import { loadProducts, saveProducts, getCategories } from './lib/products';
-import { loadSubscribers, saveSubscribers, saveSubscriberToSupabase, fetchSubscribersFromSupabase, validateEmail } from './lib/newsletter';
-import { fetchProductsFromSupabase, saveProductToSupabase, supabaseClient } from './lib/supabase';
+import { fetchPublishedStorefrontProducts, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
 import type { Product } from './lib/types';
+import { clearGuestCart, ensureGuestSession, loadGuestCart, saveGuestCart } from './lib/session';
+import HomePage from './pages/HomePage';
+import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 
 const categoryNames = ['Men', 'Women', 'Children', 'Pets'] as const;
 
@@ -38,8 +47,6 @@ function slugify(text: string) {
 function productRoute(product: Product) {
   return `/${product.category.toLowerCase()}/${slugify(product.name)}`;
 }
-
-const adminSecret = import.meta.env.VITE_ADMIN_SECRET || 'pink-halo-admin';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-US', {
@@ -118,63 +125,47 @@ const categoryThemes = {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isImmersiveHome = location.pathname === '/';
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const [products, setProducts] = useState<Product[]>(loadProducts());
   const [category, setCategory] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [linkInput, setLinkInput] = useState('');
-  const [scrapeResult, setScrapeResult] = useState<Partial<Product> | null>(null);
-  const [scrapeStatus, setScrapeStatus] = useState('');
-  const [subscriberEmail, setSubscriberEmail] = useState('');
-  const [subscribers, setSubscribers] = useState<string[]>([]);
-  const [newsletterStatus, setNewsletterStatus] = useState('');
-  const [campaignSubject, setCampaignSubject] = useState('Discover the latest Pink Halo arrivals!');
-  const [campaignBody, setCampaignBody] = useState('A new item is available now — shop our latest collection at Pink Halo Co. Click to explore.');
-  const [autoEmailOnAdd, setAutoEmailOnAdd] = useState(false);
-  const [adminKey, setAdminKey] = useState('');
-  const [activeTool, setActiveTool] = useState<'dashboard' | 'inventory' | 'productUpload' | 'subscribers'>('dashboard');
-  const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [emailNotification, setEmailNotification] = useState<string | null>(null);
-
-  const adminTools = [
-    { id: 'dashboard', label: 'Dashboard', description: 'Review inventory metrics and choose the tool you need.' },
-    { id: 'inventory', label: 'Inventory manager', description: 'Update stock counts and keep product data in sync with Supabase.' },
-    { id: 'productUpload', label: 'Product ingestion', description: 'Add supplier links, preview product details, and save new items.' },
-    { id: 'subscribers', label: 'Subscribers', description: 'Manage newsletter lists, campaign content, and subscriber outreach.' }
-  ] as const;
+  const [authSession, setAuthSession] = useState(false);
+  const [userRole, setUserRole] = useState<string>('guest');
 
   useEffect(() => {
-    const storedCart = localStorage.getItem('pink-halo-cart');
-    if (storedCart) {
-      setCart(JSON.parse(storedCart));
-    }
+    ensureGuestSession();
+    setCart(loadGuestCart());
     setProducts(loadProducts());
-    const storedSubscribers = loadSubscribers();
-    if (storedSubscribers.length) {
-      setSubscribers(storedSubscribers);
-    }
 
-    async function loadRemoteData() {
-      if (!supabaseClient) return;
-      setSupabaseConnected(true);
-      const remoteProducts = await fetchProductsFromSupabase();
-      if (Array.isArray(remoteProducts) && remoteProducts.length > 0) {
-        setProducts(remoteProducts as Product[]);
+    if (!supabaseClient) return;
+
+    fetchPublishedStorefrontProducts()
+      .then(publishedProducts => setProducts(publishedProducts))
+      .catch(error => console.error('Storefront catalog error', error));
+
+    supabaseClient.auth.getSession().then(({ data: sessionData }) => {
+      const signedIn = Boolean(sessionData.session);
+      setAuthSession(signedIn);
+      const role = sessionData.session?.user?.app_metadata?.role || 'customer';
+      setUserRole(String(role));
+
+      // Clear OAuth callback hash after session has been read.
+      if (window.location.hash.includes('access_token=')) {
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
       }
-      const remoteSubscribers = await fetchSubscribersFromSupabase();
-      if (Array.isArray(remoteSubscribers) && remoteSubscribers.length > 0) {
-        setSubscribers(remoteSubscribers.map((item) => item.email).filter(Boolean));
-      }
-    }
+    });
 
-    loadRemoteData();
+    const { data: authSubscription } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setAuthSession(Boolean(session));
+        const nextRole = session?.user?.app_metadata?.role || 'customer';
+      setUserRole(String(nextRole));
+    });
 
-    if (location.pathname === '/admin') {
-      setIsAdmin(window.location.hostname === 'localhost');
-    }
+    return () => authSubscription.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -182,26 +173,27 @@ function App() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const checkoutState = new URLSearchParams(window.location.search).get('checkout');
+    if (checkoutState === 'success') {
+      setCart({});
+      clearGuestCart();
+      setNotification('Checkout complete. Thank you for shopping Pink Halo.');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (checkoutState === 'donation-success') {
+      setNotification('Donation complete. Thank you for supporting the Pink Halo community.');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (checkoutState === 'cancel') {
+      setNotification('Checkout was canceled. Your bag is still here.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     saveProducts(products);
   }, [products]);
 
   useEffect(() => {
-    saveSubscribers(subscribers);
-  }, [subscribers]);
-
-  useEffect(() => {
-    if (!supabaseClient) return;
-    async function backupRemoteProducts() {
-      const { error } = await supabaseClient.from('products').upsert(products);
-      if (error) {
-        console.error('Supabase backup error', error);
-      }
-    }
-    backupRemoteProducts().catch(() => undefined);
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('pink-halo-cart', JSON.stringify(cart));
+    saveGuestCart(cart);
   }, [cart]);
 
   const filteredProducts = useMemo(() => {
@@ -234,11 +226,6 @@ function App() {
     setCartOpen(false);
   }
 
-  async function saveProductChange(product: Product) {
-    if (!supabaseClient) return;
-    await saveProductToSupabase(product);
-  }
-
   function updateProductStock(id: string, quantity: number) {
     setProducts((current) => {
       const nextProducts = current.map((product) =>
@@ -246,15 +233,11 @@ function App() {
           ? { ...product, stock: Math.max(0, Math.min(999, quantity)) }
           : product
       );
-      const updated = nextProducts.find((product) => product.id === id);
-      if (updated) {
-        saveProductChange(updated).catch(() => undefined);
-      }
       return nextProducts;
     });
   }
 
-  function addItemToCart(product: Product, quantity: number = 1) {
+  function addItemToCart(product: Product, quantity: number = 1, openLegacyDrawer: boolean = true) {
     if (product.stock <= 0) {
       setNotification('This item is currently out of stock.');
       return;
@@ -263,7 +246,7 @@ function App() {
       ...current,
       [product.id]: (current[product.id] || 0) + quantity
     }));
-    setCartOpen(true);
+    if (openLegacyDrawer) setCartOpen(true);
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
@@ -292,84 +275,7 @@ function App() {
     });
   }
 
-  function addSubscriber() {
-    const email = subscriberEmail.trim().toLowerCase();
-    if (!validateEmail(email)) {
-      setNewsletterStatus('Enter a valid email address.');
-      return;
-    }
-    if (subscribers.includes(email)) {
-      setNewsletterStatus('This email is already subscribed.');
-      return;
-    }
-    const next = [...subscribers, email];
-    setSubscribers(next);
-    setSubscriberEmail('');
-    setNewsletterStatus('You are subscribed to Pink Halo updates.');
-    saveSubscriberToSupabase(email).catch(() => undefined);
-  }
-
-  function removeSubscriber(email: string) {
-    setSubscribers((current) => current.filter((item) => item !== email));
-  }
-
-  async function sendEmailCampaign() {
-    if (!subscribers.length) {
-      setEmailNotification('No subscribers are available for this campaign.');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: subscribers,
-          subject: campaignSubject,
-          html: `<h1>${campaignSubject}</h1><p>${campaignBody}</p><p><a href=\"https://pinkhalo.co\">Shop now at PinkHalo.co</a></p>`,
-          text: `${campaignSubject}\n\n${campaignBody}\n\nShop now at https://pinkhalo.co`
-        })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setEmailNotification('Campaign email sent successfully.');
-      } else {
-        setEmailNotification(result.error || 'Failed to send campaign email.');
-      }
-    } catch (error) {
-      setEmailNotification('Unable to send email campaign.');
-    }
-  }
-
-  async function sendProductAnnouncement(product: Product) {
-    if (!autoEmailOnAdd || !subscribers.length) {
-      return;
-    }
-
-    try {
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: subscribers,
-          subject: `New Pink Halo arrival: ${product.name}`,
-          html: `<h1>${product.name}</h1><p>${product.description}</p><p><strong>Price:</strong> ${formatCurrency(product.price)}</p><p><a href=\"${product.link}\" target=\"_blank\">View item</a></p>`,
-          text: `${product.name}\n${product.description}\nPrice: ${formatCurrency(product.price)}\n${product.link}`
-        })
-      });
-      setEmailNotification(`Announcement sent for ${product.name}.`);
-    } catch (error) {
-      setEmailNotification('Failed to send the product announcement email.');
-    }
-  }
-
   async function createCheckoutSession() {
-    const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-    if (!publishableKey) {
-      setNotification('Missing Stripe publishable key. Configure VITE_STRIPE_PUBLISHABLE_KEY in your environment.');
-      return;
-    }
-
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -378,22 +284,16 @@ function App() {
           name: item.product.name,
           amount: Math.round(item.product.price * 100),
           quantity: item.quantity,
-          url: item.product.link
-        })) })
+          url: item.product.link,
+          productId: item.product.id,
+        })),
+        guestSessionId: ensureGuestSession(),
+        customerMode: authSession ? 'authenticated' : 'guest',
+      })
       });
 
       const data = await response.json();
-      if (data.sessionId) {
-        const stripe = await loadStripe(publishableKey);
-        if (!stripe) {
-          setNotification('Unable to initialize Stripe.');
-          return;
-        }
-        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-        if (error) {
-          setNotification(error.message || 'Unable to redirect to Stripe checkout.');
-        }
-      } else if (data.url) {
+      if (data.url) {
         window.location.href = data.url;
       } else {
         setNotification(data.error || 'Unable to initiate checkout.');
@@ -403,94 +303,43 @@ function App() {
     }
   }
 
-  async function handleScrape() {
-    if (!linkInput.trim()) {
-      setScrapeStatus('Enter a valid product URL to begin scraping.');
-      return;
-    }
-    setScrapeStatus('Fetching product details...');
-    try {
-      const response = await fetch('/api/fetch-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkInput.trim() })
-      });
-      const payload = await response.json();
-      if (payload.error) {
-        setScrapeStatus(payload.error);
-        setScrapeResult(null);
-        return;
-      }
-      setScrapeResult({
-        id: payload.id || payload.name?.toLowerCase().replace(/\s+/g, '-'),
-        name: payload.name || '',
-        description: payload.description || '',
-        price: payload.price || 0,
-        imageUrl: payload.imageUrl || '',
-        link: linkInput.trim(),
-        category: payload.category || 'Women',
-        stock: payload.stock ?? 0,
-        profitMargin: payload.profitMargin ?? 0
-      });
-      setScrapeStatus('Preview ready. Adjust details and save to the catalog.');
-    } catch (error) {
-      setScrapeStatus('Unable to fetch product details from the link.');
-      setScrapeResult(null);
-    }
+  async function createDonationSession(amount: number) {
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        checkoutType: 'donation',
+        donationAmount: Math.round(amount * 100),
+        guestSessionId: ensureGuestSession(),
+        customerMode: authSession ? 'authenticated' : 'guest',
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) throw new Error(data.error || 'Unable to start donation checkout.');
+    window.location.href = data.url;
   }
 
-  async function handleSaveScrape() {
-    if (!scrapeResult || !scrapeResult.name) {
-      setScrapeStatus('Provide valid product details before saving.');
-      return;
-    }
-    if (!scrapeResult.price || scrapeResult.price <= 0) {
-      setScrapeStatus('Please enter a valid price for the new product.');
-      return;
-    }
-    if (!scrapeResult.link) {
-      setScrapeStatus('Product link is required to save the item.');
-      return;
-    }
-    const newProduct: Product = {
-      id: scrapeResult.id || `item-${Date.now()}`,
-      category: scrapeResult.category || 'Women',
-      name: scrapeResult.name,
-      description: scrapeResult.description || 'Shop the latest curated favorite.',
-      price: scrapeResult.price,
-      imageUrl: scrapeResult.imageUrl || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
-      link: scrapeResult.link,
-      stock: scrapeResult.stock ?? 0,
-      profitMargin: scrapeResult.profitMargin ?? 0
-    };
-    setProducts((current) => [newProduct, ...current]);
-    setScrapeResult(null);
-    setLinkInput('');
-    setScrapeStatus('Product added to the storefront successfully.');
-    await saveProductToSupabase(newProduct).catch(() => undefined);
-    await sendProductAnnouncement(newProduct);
-  }
+  const isStaff = ['staff', 'manager', 'admin', 'superadmin'].includes(userRole.toLowerCase());
 
-  function activateAdmin() {
-    if (adminKey === adminSecret) {
-      setIsAdmin(true);
-      setNotification('Admin mode enabled for localhost.');
-    } else {
-      setNotification('Invalid admin key.');
-    }
-  }
+  const adminAccessGate = (
+    <section className="max-w-xl mx-auto p-6 mt-10 rounded-2xl border border-pink-500/30 bg-neutral-900/80">
+      <h2 className="text-2xl font-semibold text-white">Staff access required</h2>
+      <p className="text-pink-100 mt-2">Sign in with Google through Supabase to manage inventory, users, and orders.</p>
+      <div className="flex gap-3 mt-5">
+        {!authSession ? (
+          <button className="px-4 py-2 rounded-lg bg-pink-500 text-white" onClick={() => signInWithGoogle().catch(() => setNotification('Google sign in failed.'))}>
+            Sign in with Google
+          </button>
+        ) : (
+          <button className="px-4 py-2 rounded-lg bg-white/10 text-white" onClick={() => signOutSupabase().catch(() => undefined)}>
+            Sign out
+          </button>
+        )}
+      </div>
+    </section>
+  );
 
-  const inventory = useMemo(() => {
-    return products.reduce(
-      (acc, product) => {
-        acc.totalStock += product.stock;
-        acc.productCount += 1;
-        acc.totalValue += product.price * product.stock;
-        return acc;
-      },
-      { totalStock: 0, productCount: 0, totalValue: 0 }
-    );
-  }, [products]);
+  const adminRoute = (page: JSX.Element) => (isStaff ? <AdminLayout>{page}</AdminLayout> : adminAccessGate);
 
   const storefrontPage = (
     <>
@@ -743,235 +592,44 @@ function App() {
           </div>
         )}
       </motion.aside>
+
     </>
   );
 
   return (
-    <div className="min-h-screen bg-neutral-900 text-white">
-      <Header cartCount={cartItems.length} onToggleCart={toggleCart} />
+    <div className={isAdminRoute ? 'min-h-screen' : 'min-h-screen bg-neutral-900 text-white'}>
+      {!isImmersiveHome && !isAdminRoute && <Header cartCount={cartItems.length} onToggleCart={toggleCart} />}
+
+      {notification && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-neutral-900 border border-pink-500/40 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-4 max-w-md">
+          <p className="text-sm">{notification}</p>
+          <button type="button" onClick={() => setNotification(null)} aria-label="Dismiss" className="text-white/60 hover:text-white">×</button>
+        </div>
+      )}
 
       <main>
         <Routes>
-          <Route path="/" element={storefrontPage} />
+          <Route path="/" element={<HomePage products={products} cart={cart} onAddToCart={(product) => addItemToCart(product, 1, false)} onUpdateQuantity={updateCartQuantity} onRemoveFromCart={removeFromCart} onCheckout={createCheckoutSession} onDonate={createDonationSession} />} />
+          <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} products={products} />} />
+          <Route path="/checkout" element={<CheckoutPage cart={cart} products={products} />} />
           <Route path="/men" element={storefrontPage} />
           <Route path="/women" element={storefrontPage} />
           <Route path="/children" element={storefrontPage} />
           <Route path="/pets" element={storefrontPage} />
           <Route path="/:category/:slug" element={<ProductDetail products={products} onAdd={addItemToCart} setCartOpen={setCartOpen} formatCurrency={formatCurrency} />} />
-          <Route path="/admin" element={
-            <section className="section container">
-              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ flex: '1 1 520px' }}>
-                  <h2 className="title">Admin dashboard</h2>
-                  <p className="subtitle">Manage inventory, product ingestion, and subscriber workflows from one backed-up admin workspace.</p>
-                </div>
-                {!isAdmin && (
-                  <div style={{ flex: '1 1 280px', minWidth: 280 }}>
-                    <label className="badge">Admin access</label>
-                    <input value={adminKey} onChange={(e) => setAdminKey(e.target.value)} className="input" placeholder="Admin key" />
-                    <button className="primary" style={{ width: '100%', marginTop: '1rem' }} onClick={activateAdmin}>Unlock admin</button>
-                    <p style={{ marginTop: '0.85rem', color: '#b8b8c2' }}>Admin mode also activates automatically on localhost.</p>
-                  </div>
-                )}
-              </div>
+          {/* ── Admin routes ── */}
+          <Route path="/admin" element={adminRoute(<AdminDashboardPage />)} />
+          <Route path="/admin/products" element={adminRoute(<AdminProductsPage />)} />
+          <Route path="/admin/products/new" element={adminRoute(<AdminAddProductPage />)} />
+          <Route path="/admin/products/:id/edit" element={adminRoute(<AdminEditProductPage />)} />
+          <Route path="/admin/orders" element={adminRoute(<AdminOrdersPage />)} />
+          <Route path="/admin/manufacturers" element={adminRoute(<AdminManufacturersPage />)} />
 
-              {notification && (
-                <div className="card" style={{ marginTop: '1.5rem', borderColor: '#ff8ac7' }}>
-                  {notification}
-                </div>
-              )}
-
-              <div className="section card" style={{ marginTop: '1.5rem' }}>
-                <div className="grid grid-3" style={{ gap: '1rem' }}>
-                  <div>
-                    <p className="badge">Catalog</p>
-                    <h3>{products.length} products</h3>
-                  </div>
-                  <div>
-                    <p className="badge">Total stock</p>
-                    <h3>{inventory.totalStock}</h3>
-                  </div>
-                  <div>
-                    <p className="badge">Inventory value</p>
-                    <h3>{formatCurrency(inventory.totalValue)}</h3>
-                  </div>
-                </div>
-                <div style={{ marginTop: '1.25rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <p className="badge">Supabase sync</p>
-                    <p style={{ marginTop: '.5rem', color: '#d8d8e8' }}>{supabaseConnected ? 'Connected and backing up product data' : 'Supabase is not configured. Local changes are stored in browser storage.'}</p>
-                  </div>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <p className="badge">Active tool</p>
-                    <p style={{ marginTop: '.5rem', color: '#d8d8e8' }}>{adminTools.find((tool) => tool.id === activeTool)?.label}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="section card" style={{ marginTop: '1.5rem' }}>
-                <p className="badge">Tools list</p>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-                  {adminTools.map((tool) => (
-                    <button
-                      key={tool.id}
-                      type="button"
-                      onClick={() => setActiveTool(tool.id)}
-                      style={{
-                        padding: '0.9rem 1rem',
-                        borderRadius: 12,
-                        border: activeTool === tool.id ? '1px solid #fff' : '1px solid rgba(255,255,255,0.18)',
-                        background: activeTool === tool.id ? 'rgba(255,255,255,0.08)' : 'transparent',
-                        color: '#fff',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {tool.label}
-                    </button>
-                  ))}
-                </div>
-                <p style={{ marginTop: '1rem', color: '#d8d8e8' }}>{adminTools.find((tool) => tool.id === activeTool)?.description}</p>
-              </div>
-
-              {activeTool === 'dashboard' && (
-                <div className="section card" style={{ marginTop: '1.5rem' }}>
-                  <h3>Dashboard overview</h3>
-                  <p className="subtitle">View real product metrics and quickly jump to the tools you need.</p>
-                  <div className="grid grid-4" style={{ gap: '1rem', marginTop: '1rem' }}>
-                    {adminTools.map((tool) => (
-                      <div key={tool.id} className="card" style={{ padding: '1rem' }}>
-                        <p className="badge">{tool.label}</p>
-                        <p style={{ marginTop: '0.75rem', color: '#d8d8e8' }}>{tool.description}</p>
-                        <button className="secondary" style={{ marginTop: '1rem' }} onClick={() => setActiveTool(tool.id)}>
-                          Open
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTool === 'inventory' && (
-                <div className="section card" style={{ marginTop: '1.5rem' }}>
-                  <h3>Inventory manager</h3>
-                  <p className="subtitle">Update stock counts, synchronize changes, and keep all product data backed up.</p>
-                  {products.length ? (
-                    <div className="grid grid-2" style={{ gap: '1rem', marginTop: '1rem' }}>
-                      {products.map((product) => (
-                        <div key={product.id} className="card" style={{ padding: '1rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-                            <div>
-                              <strong>{product.name}</strong>
-                              <p style={{ marginTop: '0.5rem', color: '#c5c8da' }}>{product.category}</p>
-                              <p style={{ marginTop: '0.5rem', color: '#d8d8e8' }}>{formatCurrency(product.price)} each</p>
-                            </div>
-                            <div style={{ minWidth: 110 }}>
-                              <label className="badge">Stock</label>
-                              <input className="input" type="number" value={product.stock} onChange={(e) => updateProductStock(product.id, Number(e.target.value))} style={{ width: '100%', marginTop: '0.5rem' }} />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p style={{ marginTop: '1rem', color: '#c5c8da' }}>No products are available to manage yet.</p>
-                  )}
-                </div>
-              )}
-
-              {activeTool === 'productUpload' && (
-                <div className="section card" style={{ marginTop: '1.5rem' }}>
-                  <h3>Product ingestion</h3>
-                  <p className="subtitle">Add supplier links, preview scraped details, and publish real product data.</p>
-                  <label className="badge">Product URL</label>
-                  <input value={linkInput} onChange={(e) => setLinkInput(e.target.value)} className="input" placeholder="Paste product page URL" />
-                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-                    <button className="primary" onClick={handleScrape}>Fetch product details</button>
-                    <button className="secondary" onClick={() => { setLinkInput(''); setScrapeResult(null); setScrapeStatus(''); }}>Reset</button>
-                  </div>
-                  {scrapeStatus && <p style={{ marginTop: '1rem', color: '#d8d8e8' }}>{scrapeStatus}</p>}
-                  {scrapeResult && (
-                    <div className="card" style={{ marginTop: '1.5rem' }}>
-                      <div className="grid grid-2" style={{ alignItems: 'start', gap: '1rem' }}>
-                        <div>
-                          <label className="badge">Preview</label>
-                          <input className="input" value={scrapeResult.name} onChange={(e) => setScrapeResult({ ...scrapeResult, name: e.target.value })} />
-                          <textarea className="textarea" rows={4} value={scrapeResult.description} onChange={(e) => setScrapeResult({ ...scrapeResult, description: e.target.value })} style={{ marginTop: '1rem' }} />
-                          <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
-                            <input className="input" type="number" value={scrapeResult.price ?? 0} onChange={(e) => setScrapeResult({ ...scrapeResult, price: Number(e.target.value) })} placeholder="Price" />
-                            <input className="input" value={scrapeResult.imageUrl} onChange={(e) => setScrapeResult({ ...scrapeResult, imageUrl: e.target.value })} placeholder="Image URL" />
-                            <select className="select" value={scrapeResult.category} onChange={(e) => setScrapeResult({ ...scrapeResult, category: e.target.value as Product['category'] })}>
-                              {getCategories().map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
-                            </select>
-                            <input className="input" type="number" value={scrapeResult.stock ?? 0} onChange={(e) => setScrapeResult({ ...scrapeResult, stock: Number(e.target.value) })} placeholder="Stock" />
-                          </div>
-                        </div>
-                        <div className="product-image" style={{ minHeight: 260 }}>
-                          <img src={scrapeResult.imageUrl || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80'} alt="Preview" />
-                        </div>
-                      </div>
-                      <button className="primary" style={{ marginTop: '1.25rem' }} onClick={handleSaveScrape}>Save new product</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTool === 'subscribers' && (
-                <div className="section card" style={{ marginTop: '1.5rem' }}>
-                  <h3>Subscribers</h3>
-                  <p className="subtitle">Manage your email list and send campaigns only when your data is real.</p>
-                  <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <input
-                        className="input"
-                        placeholder="subscriber@example.com"
-                        value={subscriberEmail}
-                        onChange={(e) => setSubscriberEmail(e.target.value)}
-                      />
-                      <button className="primary" onClick={addSubscriber}>Add subscriber</button>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <input
-                        type="checkbox"
-                        checked={autoEmailOnAdd}
-                        onChange={(e) => setAutoEmailOnAdd(e.target.checked)}
-                        style={{ width: '18px', height: '18px' }}
-                      />
-                      <span>Automatically email subscribers when a new product is added</span>
-                    </div>
-                    <div>
-                      <p className="badge">Campaign editor</p>
-                      <input className="input" value={campaignSubject} onChange={(e) => setCampaignSubject(e.target.value)} placeholder="Email subject" />
-                      <textarea className="textarea" rows={4} value={campaignBody} onChange={(e) => setCampaignBody(e.target.value)} style={{ marginTop: '1rem' }} />
-                      <button className="primary" style={{ marginTop: '1rem' }} onClick={sendEmailCampaign}>Send campaign now</button>
-                      {emailNotification && <p style={{ marginTop: '1rem', color: '#d8d8e8' }}>{emailNotification}</p>}
-                    </div>
-                    <div className="card" style={{ padding: '1rem' }}>
-                      <p className="badge">Subscriber list</p>
-                      {subscribers.length ? (
-                        <ul style={{ margin: '0.75rem 0 0', paddingLeft: '1.2rem', color: '#d8d8e8' }}>
-                          {subscribers.map((subscriber) => (
-                            <li key={subscriber} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                              <span>{subscriber}</span>
-                              <button className="secondary" onClick={() => removeSubscriber(subscriber)}>Remove</button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p style={{ marginTop: '0.75rem', color: '#c5c8da' }}>No subscribers yet. Add emails to begin your list.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 
-      <footer className="footer container">
-        <p>Pink Halo Co. — Shop exclusive products and limited-time offers now.</p>
-      </footer>
+      {!isImmersiveHome && !isAdminRoute && <Footer />}
     </div>
   );
 }

@@ -1,171 +1,336 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Product } from '../lib/types';
+import { fetchManufacturers, fetchProduct, updateProduct } from '../lib/supabase';
+import type { PHManufacturer, ProductStatus } from '../lib/types';
 
-interface AdminEditProductPageProps {
-  products: Product[];
-  setProducts: (callback: (prev: Product[]) => Product[]) => void;
+interface DraftVariant {
+  id?: string;
+  name: string;
+  color: string;
+  size: string;
+  sku: string;
+  price: string;
+  stock: string;
 }
 
-export default function AdminEditProductPage({ products, setProducts }: AdminEditProductPageProps) {
+export default function AdminEditProductPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const product = products.find(p => p.id === id);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    imageUrl: '',
-    category: 'Women',
-    stock: '',
-    link: ''
-  });
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [compareAt, setCompareAt] = useState('');
+  const [cost, setCost] = useState('');
+  const [sku, setSku] = useState('');
+  const [stock, setStock] = useState('0');
+  const [lowStockThreshold, setLowStockThreshold] = useState('3');
+  const [weight, setWeight] = useState('');
+  const [shippingLeadDays, setShippingLeadDays] = useState('');
+  const [manufacturerId, setManufacturerId] = useState('');
+  const [manufacturerSku, setManufacturerSku] = useState('');
+  const [fulfillmentMethod, setFulfillmentMethod] = useState('unassigned');
+  const [manufacturers, setManufacturers] = useState<PHManufacturer[]>([]);
+  const [imageInput, setImageInput] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [status, setStatus] = useState<ProductStatus>('draft');
+  const [variants, setVariants] = useState<DraftVariant[]>([]);
+
+  const priceValue = parseFloat(price || '0') || 0;
+  const costValue = parseFloat(cost || '0') || 0;
+  const margin = priceValue > 0 && costValue > 0 ? ((priceValue - costValue) / priceValue) * 100 : 0;
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name,
-        description: product.description,
-        price: product.price.toString(),
-        imageUrl: product.imageUrl,
-        category: product.category,
-        stock: product.stock.toString(),
-        link: product.link
-      });
-    }
-  }, [product]);
+    if (!id) return;
+    fetchProduct(id)
+      .then(product => {
+        setName(product.name || '');
+        setDescription(product.description || '');
+        setPrice(product.price != null ? Number(product.price).toFixed(2) : '');
+        setCompareAt(product.compare_at_price != null ? Number(product.compare_at_price).toFixed(2) : '');
+        setCost(product.cost != null ? Number(product.cost).toFixed(2) : '');
+        setSku(product.sku || '');
+        setStock(String(product.stock ?? 0));
+        setLowStockThreshold(String(product.low_stock_threshold ?? 3));
+        setWeight(product.weight_oz != null ? String(product.weight_oz) : '');
+        setShippingLeadDays(product.shipping_lead_days != null ? String(product.shipping_lead_days) : '');
+        setManufacturerId(product.manufacturer_id || '');
+        setManufacturerSku(product.manufacturer_sku || '');
+        setFulfillmentMethod(product.fulfillment_method || 'unassigned');
+        setImages(product.images || []);
+        setTags(product.tags || []);
+        setStatus(product.status || 'draft');
+        setVariants(
+          (product.product_variants || []).map((variant: any) => ({
+            id: variant.id,
+            name: variant.name || '',
+            color: variant.options?.color || '',
+            size: variant.options?.size || '',
+            sku: variant.sku || '',
+            price: variant.price != null ? Number(variant.price).toFixed(2) : '',
+            stock: String(variant.stock ?? 0),
+          }))
+        );
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [id]);
+  useEffect(() => { fetchManufacturers().then(data => setManufacturers(data.manufacturers || [])).catch(() => undefined); }, []);
 
-  if (!product) {
+  function addImage() {
+    const url = imageInput.trim();
+    if (url && !images.includes(url)) setImages([...images, url]);
+    setImageInput('');
+  }
+
+  function addTag() {
+    const t = tagInput.trim().toLowerCase();
+    if (t && !tags.includes(t)) setTags([...tags, t]);
+    setTagInput('');
+  }
+
+  function addVariant() {
+    setVariants((current) => [
+      ...current,
+      { name: '', color: '', size: '', sku: '', price: '', stock: '0' },
+    ]);
+  }
+
+  function updateVariant(index: number, key: keyof DraftVariant, value: string) {
+    setVariants((current) =>
+      current.map((variant, i) => (i === index ? { ...variant, [key]: value } : variant))
+    );
+  }
+
+  function removeVariant(index: number) {
+    setVariants((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function handleSave() {
+    if (!id || !name.trim() || !price) { setSaveError('Name and price are required.'); return; }
+    setSaving(true);
+    setSaveError('');
+    try {
+      const payloadVariants = variants
+        .filter((variant) => variant.name.trim() || variant.color.trim() || variant.size.trim() || variant.sku.trim())
+        .map((variant, index) => {
+          const cleanColor = variant.color.trim();
+          const cleanSize = variant.size.trim();
+          const computedName =
+            variant.name.trim() ||
+            [cleanColor, cleanSize].filter(Boolean).join(' / ') ||
+            `Variant ${index + 1}`;
+          return {
+            name: computedName,
+            sku: variant.sku.trim() || undefined,
+            price: variant.price ? parseFloat(variant.price) : undefined,
+            stock: parseInt(variant.stock) || 0,
+            options: {
+              ...(cleanColor ? { color: cleanColor } : {}),
+              ...(cleanSize ? { size: cleanSize } : {}),
+            },
+          };
+        });
+
+      await updateProduct(id, {
+        name: name.trim(),
+        description: description.trim(),
+        price: parseFloat(price),
+        compare_at_price: compareAt ? parseFloat(compareAt) : undefined,
+        cost: cost ? parseFloat(cost) : undefined,
+        sku: sku.trim() || undefined,
+        stock: parseInt(stock) || 0,
+        low_stock_threshold: parseInt(lowStockThreshold) || 3,
+        weight_oz: weight ? parseFloat(weight) : undefined,
+        shipping_lead_days: shippingLeadDays ? parseInt(shippingLeadDays) : undefined,
+        manufacturer_id: manufacturerId || undefined,
+        manufacturer_sku: manufacturerSku || undefined,
+        fulfillment_method: fulfillmentMethod as any,
+        images,
+        tags,
+        status,
+        variants: payloadVariants,
+      });
+      navigate('/admin/products');
+    } catch (e) {
+      setSaveError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="p-10 text-gray-400">Loading product…</div>;
+  }
+
+  if (notFound || !id) {
     return (
-      <div className="flex-1 flex items-center justify-center py-12">
-        <p className="text-gray-600">Product not found</p>
+      <div className="p-10 text-center text-gray-500">
+        <p className="mb-3">Product not found.</p>
+        <button onClick={() => navigate('/admin/products')} className="text-pink-500 underline text-sm">Back to products</button>
       </div>
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.price || !formData.stock) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    setProducts(prev => prev.map(p => p.id === id ? {
-      ...p,
-      name: formData.name,
-      description: formData.description,
-      price: parseFloat(formData.price),
-      imageUrl: formData.imageUrl,
-      category: formData.category as any,
-      stock: parseInt(formData.stock),
-      link: formData.link
-    } : p));
-    
-    navigate('/admin/products');
-  };
-
   return (
-    <div className="flex-1 py-12 px-4 bg-gray-50">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-serif font-bold text-gray-900 mb-8">Edit Product</h1>
+    <div className="max-w-4xl">
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate('/admin/products')} className="text-gray-400 hover:text-gray-600 text-sm">← Back</button>
+        <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+      </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-8 space-y-6">
+      <div className="bg-white rounded-xl p-5 shadow-sm space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Name *</label>
+          <input className="w-full border rounded-lg px-3 py-2 text-sm" value={name} onChange={e => setName(e.target.value)} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div><label className="block text-xs font-semibold text-gray-600 mb-1">Manufacturer</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={manufacturerId} onChange={e => setManufacturerId(e.target.value)}><option value="">Unassigned</option>{manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+          <div><label className="block text-xs font-semibold text-gray-600 mb-1">Fulfillment</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={fulfillmentMethod} onChange={e => setFulfillmentMethod(e.target.value)}>{['unassigned','in_house','manufacturer','print_on_demand','dropship'].map(v => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}</select></div>
+          <div><label className="block text-xs font-semibold text-gray-600 mb-1">Manufacturer SKU</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={manufacturerSku} onChange={e => setManufacturerSku(e.target.value)} /></div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+          <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={4} value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="block font-semibold text-gray-900 mb-2">Product Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Price ($) *</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
           </div>
-
           <div>
-            <label className="block font-semibold text-gray-900 mb-2">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              rows={3}
-            />
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Compare at ($)</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" step="0.01" value={compareAt} onChange={e => setCompareAt(e.target.value)} />
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Cost ($)</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" step="0.01" value={cost} onChange={e => setCost(e.target.value)} />
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-gray-900 mb-2">Price *</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                required
-              />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Stock</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" value={stock} onChange={e => setStock(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">SKU</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" value={sku} onChange={e => setSku(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Low stock alert</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} placeholder="3" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Weight (oz)</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Ship lead (days)</label>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm" type="number" value={shippingLeadDays} onChange={e => setShippingLeadDays(e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Images</label>
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {images.map((img, i) => (
+                <div key={i} className="relative">
+                  <img src={img} alt="" className="w-16 h-16 object-cover rounded border" />
+                  <button onClick={() => setImages(images.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">×</button>
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="block font-semibold text-gray-900 mb-2">Stock *</label>
-              <input
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({...formData, stock: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                required
-              />
+          )}
+          <div className="flex gap-2">
+            <input className="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="Image URL" value={imageInput} onChange={e => setImageInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addImage()} />
+            <button onClick={addImage} className="border px-3 py-2 rounded-lg text-sm hover:bg-gray-50">Add</button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Tags</label>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {tags.map(t => (
+                <span key={t} className="bg-pink-100 text-pink-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                  {t}
+                  <button onClick={() => setTags(tags.filter(x => x !== t))} className="hover:text-red-500">×</button>
+                </span>
+              ))}
             </div>
+          )}
+          <div className="flex gap-2">
+            <input className="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="e.g. summer, sale" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTag()} />
+            <button onClick={addTag} className="border px-3 py-2 rounded-lg text-sm hover:bg-gray-50">Add</button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+          <select className="border rounded-lg px-3 py-2 text-sm" value={status} onChange={e => setStatus(e.target.value as ProductStatus)}>
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold text-gray-600">Variants (colors, sizes, per-item stock/price)</label>
+            <button onClick={addVariant} className="border px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50">+ Add variant</button>
           </div>
 
-          <div>
-            <label className="block font-semibold text-gray-900 mb-2">Category</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value})}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option>Women</option>
-              <option>Men</option>
-              <option>Children</option>
-              <option>Pets</option>
-            </select>
-          </div>
+          {variants.length === 0 ? (
+            <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              No variants yet. Add variants to manage color, size, SKU, pricing, and stock per item.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {variants.map((variant, index) => (
+                <div key={variant.id || index} className="grid grid-cols-1 md:grid-cols-7 gap-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Variant name" value={variant.name} onChange={(e) => updateVariant(index, 'name', e.target.value)} />
+                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Color" value={variant.color} onChange={(e) => updateVariant(index, 'color', e.target.value)} />
+                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Size" value={variant.size} onChange={(e) => updateVariant(index, 'size', e.target.value)} />
+                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="SKU" value={variant.sku} onChange={(e) => updateVariant(index, 'sku', e.target.value)} />
+                  <input className="border rounded px-2 py-1.5 text-xs" type="number" step="0.01" placeholder="Price $" value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} />
+                  <input className="border rounded px-2 py-1.5 text-xs" type="number" placeholder="Stock" value={variant.stock} onChange={(e) => updateVariant(index, 'stock', e.target.value)} />
+                  <button onClick={() => removeVariant(index)} className="text-xs text-red-500 hover:text-red-700 border border-red-200 bg-white rounded px-2 py-1.5">
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div>
-            <label className="block font-semibold text-gray-900 mb-2">Image URL</label>
-            <input
-              type="url"
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
+          <p className="font-semibold text-gray-700 mb-1">Quick summary</p>
+          <p>Margin: {margin > 0 ? `${margin.toFixed(1)}%` : '—'}</p>
+          <p>Inventory: {parseInt(stock || '0') <= 0 ? 'Out of stock' : `${stock} units`}</p>
+          <p>Variants: {variants.length}</p>
+        </div>
 
-          <div>
-            <label className="block font-semibold text-gray-900 mb-2">Product Link</label>
-            <input
-              type="url"
-              value={formData.link}
-              onChange={(e) => setFormData({...formData, link: e.target.value})}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
+        {saveError && <p className="text-red-500 text-sm">{saveError}</p>}
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-semibold"
-            >
-              Save Changes
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/products')}
-              className="flex-1 py-3 border border-gray-200 text-gray-900 rounded-lg hover:bg-gray-50 transition font-semibold"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        <div className="flex gap-3 pt-2">
+          <button onClick={handleSave} disabled={saving} className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg font-medium text-sm disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+          <button onClick={() => navigate('/admin/products')} className="border px-6 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
