@@ -60,7 +60,9 @@ export default function ProductCard({ product, onAdd, formatCurrency, productMas
         />
 
         <div className="absolute inset-x-0 top-4 flex justify-between px-4">
-          {product.stock === 0 ? (
+          {product.preorder ? (
+            <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-white px-3 py-1 text-[0.65rem] font-semibold uppercase shadow-lg">Coming Soon</span>
+          ) : product.stock === 0 ? (
             <span className="rounded-full bg-pink-100/90 px-3 py-1 text-[0.65rem] font-semibold uppercase text-pink-700 shadow-sm">Sold Out</span>
           ) : product.stock < 5 ? (
             <span className="rounded-full bg-gradient-to-r from-pink-500 to-pink-600 text-white px-3 py-1 text-[0.65rem] font-semibold uppercase shadow-lg">Low Stock</span>
@@ -86,18 +88,23 @@ export default function ProductCard({ product, onAdd, formatCurrency, productMas
         <h3 className="text-base font-semibold text-pink-900 line-clamp-2">{product.name}</h3>
         <p className="text-sm text-pink-600 flex-1 line-clamp-2">{productMask(product.description)}</p>
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-pink-100 pt-4">
-          <span className="text-lg font-semibold text-pink-800">{formatCurrency(product.price)}</span>
+          <span className="flex items-baseline gap-2">
+            {product.compareAtPrice != null && (
+              <span className="text-sm text-pink-400 line-through">{formatCurrency(product.compareAtPrice)}</span>
+            )}
+            <span className="text-lg font-semibold text-pink-800">{formatCurrency(product.price)}</span>
+          </span>
           <motion.button
             onClick={(event) => {
               event.stopPropagation();
               onAdd(product);
             }}
             className="rounded-full bg-gradient-to-r from-pink-500 to-amber-300 px-4 py-2 text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={product.stock > 0 ? { scale: 1.05 } : {}}
-            whileTap={product.stock > 0 ? { scale: 0.95 } : {}}
-            disabled={product.stock === 0}
+            whileHover={product.stock > 0 || product.preorder ? { scale: 1.05 } : {}}
+            whileTap={product.stock > 0 || product.preorder ? { scale: 0.95 } : {}}
+            disabled={product.stock === 0 && !product.preorder}
           >
-            {product.stock > 0 ? 'Add' : 'Sold Out'}
+            {product.preorder ? 'Preorder' : product.stock > 0 ? 'Add' : 'Sold Out'}
           </motion.button>
         </div>
       </div>

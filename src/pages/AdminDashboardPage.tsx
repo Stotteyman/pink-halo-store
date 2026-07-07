@@ -57,6 +57,9 @@ export default function AdminDashboardPage() {
           <Link to="/admin/manufacturers" className="inline-flex items-center border border-gray-300 hover:border-gray-400 px-3 py-2 rounded-lg text-sm font-medium text-gray-700">
             Manage suppliers
           </Link>
+          <Link to="/admin/discounts" className="inline-flex items-center border border-gray-300 hover:border-gray-400 px-3 py-2 rounded-lg text-sm font-medium text-gray-700">
+            Manage discounts
+          </Link>
         </div>
       </div>
 

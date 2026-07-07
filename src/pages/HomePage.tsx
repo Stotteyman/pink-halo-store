@@ -88,6 +88,19 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
   }, [entered]);
 
   useEffect(() => {
+    if (!entered) return;
+    // Escape already exits pointer lock natively; also close whatever dialog is
+    // open so the store doesn't stay paused behind an invisible menu.
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (screen !== null) closeScreen();
+      else if (confirmExit) cancelExit();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [entered, screen, confirmExit]);
+
+  useEffect(() => {
     if (!entered || session || guestChosen || onboardingOpen) return;
     const timer = window.setTimeout(() => {
       if (document.pointerLockElement) document.exitPointerLock?.();
@@ -175,6 +188,11 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
     if (canvas && document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
   };
 
+  const cancelExit = () => {
+    setConfirmExit(false);
+    relockPointer();
+  };
+
   const openScreen = (nextScreen: Exclude<GameScreen, 'shop' | null>) => {
     releasePointer();
     setScreen(nextScreen);
@@ -193,6 +211,7 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
 
   const closeScreen = () => {
     setScreen(null);
+    relockPointer();
   };
   const setMoving = (key: keyof TouchMovement, value: boolean) => { movement.current[key] = value; };
 
@@ -339,7 +358,7 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
         <div className="world-department" role="dialog" aria-modal="true" aria-label={`${shopCategory} shop`}>
           <div className="world-department-head"><div><span className="world-eyebrow">Stylist selection</span><h2>{shopCategory}</h2><p>Choose an item to add it directly to your in-store bag.</p></div><button type="button" onClick={closeScreen}>Back to store <span>X</span></button></div>
           {shopProducts.length ? <div className="world-product-rail">{shopProducts.map(product => (
-            <article className="world-product" key={product.id}><div className="world-product-image"><img src={product.imageUrl} alt={product.name} /></div><div className="world-product-copy"><span>{product.category}</span><h3>{product.name}</h3><strong>{money.format(product.price)}</strong><button type="button" disabled={product.stock <= 0} onClick={() => onAddToCart(product)}>{product.stock > 0 ? 'Add to bag' : 'Sold out'}</button></div></article>
+            <article className="world-product" key={product.id}><div className="world-product-image"><img src={product.imageUrl} alt={product.name} /></div><div className="world-product-copy"><span>{product.category}{product.preorder ? ' · Coming Soon' : ''}</span><h3>{product.name}</h3><strong>{product.compareAtPrice != null && <s style={{ opacity: 0.5, marginRight: '0.4em', fontWeight: 400 }}>{money.format(product.compareAtPrice)}</s>}{money.format(product.price)}</strong><button type="button" disabled={product.stock <= 0 && !product.preorder} onClick={() => onAddToCart(product)}>{product.preorder ? 'Preorder' : product.stock > 0 ? 'Add to bag' : 'Sold out'}</button></div></article>
           ))}</div> : <div className="world-empty-collection"><span>○</span><h3>Collection in preparation</h3><p>This department will open when inventory is connected.</p></div>}
         </div>
       )}
@@ -358,7 +377,7 @@ export default function HomePage({ products, cart, onAddToCart, onUpdateQuantity
         </div>
       )}
 
-      {confirmExit && <div className="world-help" role="alertdialog" aria-modal="true" aria-label="Confirm exit"><button className="world-help-backdrop" onClick={() => setConfirmExit(false)} aria-label="Cancel exit" /><div className="world-help-card world-exit-card"><span className="world-eyebrow">Leaving Pink Halo</span><h2>Ready to step outside?</h2><p>Your visit will end and Pink Halo will attempt to close this browser tab.</p><div className="world-confirm-actions"><button type="button" onClick={() => setConfirmExit(false)}>Stay in store</button><button type="button" className="world-menu-quit" onClick={quitStore}>Leave and close</button></div></div></div>}
+      {confirmExit && <div className="world-help" role="alertdialog" aria-modal="true" aria-label="Confirm exit"><button className="world-help-backdrop" onClick={cancelExit} aria-label="Cancel exit" /><div className="world-help-card world-exit-card"><span className="world-eyebrow">Leaving Pink Halo</span><h2>Ready to step outside?</h2><p>Your visit will end and Pink Halo will attempt to close this browser tab.</p><div className="world-confirm-actions"><button type="button" onClick={cancelExit}>Stay in store</button><button type="button" className="world-menu-quit" onClick={quitStore}>Leave and close</button></div></div></div>}
       {closeBlocked && <div className="world-closed"><div><span className="world-eyebrow">Visit complete</span><h2>Pink Halo is closed.</h2><p>Your browser prevented this tab from closing automatically. You can safely close it now.</p></div></div>}
     </div>
   );

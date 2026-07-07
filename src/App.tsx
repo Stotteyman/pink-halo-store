@@ -15,6 +15,7 @@ import AdminAddProductPage from './pages/AdminAddProductPage';
 import AdminEditProductPage from './pages/AdminEditProductPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminManufacturersPage from './pages/AdminManufacturersPage';
+import AdminDiscountsPage from './pages/AdminDiscountsPage';
 import { loadProducts, saveProducts, getCategories } from './lib/products';
 import { fetchPublishedStorefrontProducts, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
 import type { Product } from './lib/types';
@@ -238,7 +239,7 @@ function App() {
   }
 
   function addItemToCart(product: Product, quantity: number = 1, openLegacyDrawer: boolean = true) {
-    if (product.stock <= 0) {
+    if (product.stock <= 0 && !product.preorder) {
       setNotification('This item is currently out of stock.');
       return;
     }
@@ -260,7 +261,8 @@ function App() {
       return;
     }
 
-    const adjustedQuantity = Math.min(product.stock, Math.max(1, quantity));
+    const maxQuantity = product.preorder ? Math.max(product.stock, 10) : product.stock;
+    const adjustedQuantity = Math.min(maxQuantity, Math.max(1, quantity));
     setCart((current) => ({
       ...current,
       [productId]: adjustedQuantity
@@ -624,6 +626,7 @@ function App() {
           <Route path="/admin/products/:id/edit" element={adminRoute(<AdminEditProductPage />)} />
           <Route path="/admin/orders" element={adminRoute(<AdminOrdersPage />)} />
           <Route path="/admin/manufacturers" element={adminRoute(<AdminManufacturersPage />)} />
+          <Route path="/admin/discounts" element={adminRoute(<AdminDiscountsPage />)} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

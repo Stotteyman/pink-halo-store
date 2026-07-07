@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Category, PHProduct, PHOrder, PHManufacturer, Product } from './types';
+import type { Category, PHProduct, PHOrder, PHManufacturer, PHDiscount, Product } from './types';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -102,7 +102,7 @@ export async function fetchPublishedStorefrontProducts(): Promise<Product[]> {
   if (!supabaseClient) return [];
   const { data, error } = await supabaseClient
     .from('pinkhalo_storefront_products')
-    .select('id,name,description,price,stock,images,category_name');
+    .select('id,name,description,price,compare_at_price,preorder,stock,images,category_name');
   if (error) throw error;
   const categories: Category[] = ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
   return (data || []).flatMap(row => {
@@ -113,6 +113,8 @@ export async function fetchPublishedStorefrontProducts(): Promise<Product[]> {
       name: String(row.name),
       description: String(row.description || ''),
       price: Number(row.price),
+      compareAtPrice: row.compare_at_price != null ? Number(row.compare_at_price) : undefined,
+      preorder: Boolean(row.preorder),
       stock: Number(row.stock),
       imageUrl: Array.isArray(row.images) && row.images[0] ? String(row.images[0]) : '',
       category,
@@ -181,4 +183,22 @@ export async function updateManufacturer(id: string, updates: Partial<PHManufact
 
 export async function deleteManufacturer(id: string) {
   return apiFetch('ph-manufacturers?id=' + id, { method: 'DELETE' });
+}
+
+// ── Discounts ────────────────────────────────────────────────────────────────
+
+export async function fetchDiscounts() {
+  return apiFetch('ph-discounts', { method: 'GET' });
+}
+
+export async function createDiscount(discount: Partial<PHDiscount>) {
+  return apiFetch('ph-discounts', { method: 'POST', body: JSON.stringify(discount) });
+}
+
+export async function updateDiscount(id: string, updates: Partial<PHDiscount>) {
+  return apiFetch('ph-discounts', { method: 'PUT', body: JSON.stringify({ id, ...updates }) });
+}
+
+export async function deleteDiscount(id: string) {
+  return apiFetch('ph-discounts?id=' + id, { method: 'DELETE' });
 }

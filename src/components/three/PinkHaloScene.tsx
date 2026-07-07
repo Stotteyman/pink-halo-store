@@ -377,14 +377,30 @@ function Player({ active, movement, onRoomChange, onExitChange, onNpcFocus, onNp
         if (npc) onNpcInteract(npc.category, npc.label);
       }
     };
-    const touchStart = (event: TouchEvent) => { const touch = event.touches[0]; if (touch) touchPoint.current = { x: touch.clientX, y: touch.clientY }; };
+    // Touches are global to the screen, not scoped to the canvas, so grabbing
+    // touches[0] would pick up a finger held on a movement button elsewhere.
+    // Track this drag's own identifier so look and move work simultaneously.
+    let lookTouchId: number | null = null;
+    const touchStart = (event: TouchEvent) => {
+      if (lookTouchId !== null) return;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      lookTouchId = touch.identifier;
+      touchPoint.current = { x: touch.clientX, y: touch.clientY };
+    };
     const touchMove = (event: TouchEvent) => {
-      const touch = event.touches[0]; if (!touch || !touchPoint.current) return;
+      if (lookTouchId === null || !touchPoint.current) return;
+      const touch = Array.from(event.touches).find(candidate => candidate.identifier === lookTouchId);
+      if (!touch) return;
       yaw.current -= (touch.clientX - touchPoint.current.x) * 0.004;
       pitch.current = THREE.MathUtils.clamp(pitch.current - (touch.clientY - touchPoint.current.y) * 0.003, -1.15, 1.15);
       touchPoint.current = { x: touch.clientX, y: touch.clientY };
     };
-    const touchEnd = () => { touchPoint.current = null; };
+    const touchEnd = (event: TouchEvent) => {
+      if (lookTouchId === null) return;
+      const stillDown = Array.from(event.touches).some(candidate => candidate.identifier === lookTouchId);
+      if (!stillDown) { lookTouchId = null; touchPoint.current = null; }
+    };
     window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('keydown', interact);
     document.addEventListener('mousemove', lockedLook);
     canvas.addEventListener('click', requestLock);

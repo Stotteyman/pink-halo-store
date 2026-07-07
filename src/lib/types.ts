@@ -7,6 +7,8 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  compareAtPrice?: number;
+  preorder?: boolean;
   imageUrl: string;
   stock: number;
   link: string;
@@ -139,6 +141,19 @@ export interface PHManufacturer {
   rating?: number;
   tags?: string[];
   status: ManufacturerStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DiscountKind = 'sitewide' | 'category' | 'product';
+
+export interface PHDiscount {
+  id: string;
+  name: string;
+  kind: DiscountKind;
+  scope_id?: string | null;
+  percent_off: number;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }
