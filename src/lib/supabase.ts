@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Category, PHProduct, PHOrder, PHManufacturer, PHDiscount, Product } from './types';
+import type { Category, PHProduct, PHOrder, PHManufacturer, PHDiscount, PHUserRole, Product } from './types';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -89,6 +89,17 @@ export async function updateProfile(updates: { fullName?: string; password?: str
 
 export async function fetchCurrentUserRole() {
   return apiFetch('ph-user-roles', { method: 'GET' });
+}
+
+export async function fetchUserRoles() {
+  return apiFetch('ph-user-roles', { method: 'GET' }) as Promise<{ roles: PHUserRole[]; current_role?: string }>;
+}
+
+export async function updateUserRole(userId: string, role: PHUserRole['role']) {
+  return apiFetch('ph-user-roles', {
+    method: 'PUT',
+    body: JSON.stringify({ user_id: userId, role }),
+  });
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────

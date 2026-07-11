@@ -37,9 +37,9 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
   };
 
   return (
-    <section className="min-h-screen bg-neutral-950 text-white py-16">
-      <div className="max-w-7xl mx-auto px-4 grid gap-10 lg:grid-cols-[1.2fr_0.8fr] items-start">
-        <div className="rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl bg-white/5">
+    <section className="min-h-screen bg-white text-pink-900 py-12">
+      <div className="max-w-6xl mx-auto px-4 grid gap-10 lg:grid-cols-2 items-start">
+        <div className="rounded-[2rem] overflow-hidden border border-pink-100 shadow-lg bg-pink-50">
           <img
             src={product.imageUrl}
             alt={product.name}
@@ -50,40 +50,39 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
               target.src =
                 'data:image/svg+xml;charset=UTF-8,' +
                 encodeURIComponent(
-                  `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="100%" height="100%" fill="%2329111B"/><text x="50%" y="50%" fill="%23FF5FA2" font-family="Inter,sans-serif" font-size="40" dominant-baseline="middle" text-anchor="middle">Image unavailable</text></svg>`
+                  `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="100%" height="100%" fill="%23FBE6EE"/><text x="50%" y="50%" fill="%23DD5A8A" font-family="Inter,sans-serif" font-size="40" dominant-baseline="middle" text-anchor="middle">Image unavailable</text></svg>`
                 );
             }}
           />
         </div>
 
-        <div className="space-y-8 rounded-[2rem] border border-white/10 bg-white/5 p-8 shadow-2xl">
+        <div className="space-y-8 rounded-[2rem] border border-pink-100 bg-white p-8 shadow-lg">
           <div className="space-y-3">
-            <span className="inline-flex items-center rounded-full bg-pink-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">
+            <span className="inline-flex items-center rounded-full bg-pink-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-pink-600">
               {product.category}
             </span>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold leading-tight text-white">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold leading-tight text-pink-900">
               {product.name}
             </h1>
-            <p className="text-base text-pink-200 max-w-2xl">{product.description}</p>
+            <p className="text-base text-pink-600 max-w-2xl">{product.description}</p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex flex-wrap items-end gap-4">
-              <span className="text-4xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-pink-500">
+              <span className="text-4xl font-serif font-bold text-pink-700">
                 {formatCurrency(product.price)}
               </span>
-              <span className="text-sm text-gray-400">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</span>
+              <span className="text-sm text-pink-400">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</span>
             </div>
-            <p className="text-sm text-gray-400">Premium quality, elevated details, and luxurious texture for every moment.</p>
           </div>
 
           <div className="grid gap-4">
-            <div className="flex flex-wrap items-center gap-3 rounded-full border border-white/10 bg-white/5 p-2">
+            <div className="flex flex-wrap items-center gap-3 rounded-full border border-pink-200 bg-pink-50 p-2 w-fit">
               <button
                 type="button"
                 onClick={() => handleQuantityChange(quantity - 1)}
                 disabled={quantity <= 1}
-                className="h-11 w-11 rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 w-11 rounded-full border border-pink-200 bg-white text-lg font-semibold text-pink-700 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 −
               </button>
@@ -93,46 +92,36 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
                 max={product.stock}
                 value={quantity}
                 onChange={(event) => handleQuantityChange(Number(event.target.value) || 1)}
-                className="w-20 bg-transparent text-center text-lg font-semibold text-white outline-none"
+                className="w-16 bg-transparent text-center text-lg font-semibold text-pink-900 outline-none"
               />
               <button
                 type="button"
                 onClick={() => handleQuantityChange(quantity + 1)}
                 disabled={quantity >= product.stock}
-                className="h-11 w-11 rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 w-11 rounded-full border border-pink-200 bg-white text-lg font-semibold text-pink-700 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 +
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                className="luxury-cta-gradient text-white font-semibold rounded-2xl px-6 py-4 shadow-lg hover:shadow-2xl transition"
-                onClick={() => {
-                  onAdd(product, quantity);
-                  setCartOpen(true);
-                }}
-                disabled={product.stock <= 0}
-              >
-                {product.stock > 0 ? 'Add to cart' : 'Sold out'}
-              </button>
-              <a
-                href={product.link}
-                target="_blank"
-                rel="noreferrer"
-                className="border border-white/10 rounded-2xl px-6 py-4 text-center text-sm font-semibold text-white hover:bg-white/10 transition"
-              >
-                View external listing
-              </a>
-            </div>
+            <button
+              type="button"
+              className="luxury-cta-gradient text-white font-semibold rounded-full px-6 py-4 shadow-lg hover:shadow-xl transition"
+              onClick={() => {
+                onAdd(product, quantity);
+                setCartOpen(true);
+              }}
+              disabled={product.stock <= 0}
+            >
+              {product.stock > 0 ? 'Add to bag' : 'Sold out'}
+            </button>
           </div>
 
           <Link
-            to={`/${product.category.toLowerCase()}`}
-            className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+            to={`/category/${product.category.toLowerCase()}`}
+            className="inline-flex items-center justify-center rounded-full border border-pink-200 bg-pink-50 px-6 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100 transition"
           >
-            Back to {product.category}
+            ← Back to {product.category}
           </Link>
         </div>
       </div>

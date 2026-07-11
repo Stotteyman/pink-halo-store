@@ -25,6 +25,11 @@ export function getSupabaseServiceClient() {
   });
 }
 
+const CEO_EMAILS = new Set([
+  'gggiddings@yahoo.com',
+  'stotteyman@gmail.com',
+]);
+
 function readBearerToken(event) {
   const auth = event.headers?.authorization || event.headers?.Authorization || '';
   if (!auth.toLowerCase().startsWith('bearer ')) return null;
@@ -64,6 +69,11 @@ export async function getAuthContext(event) {
     }
   } catch {
     // Table may not exist yet; keep metadata-derived role.
+  }
+
+  const email = String(user.email || user.user_metadata?.email || '').toLowerCase();
+  if (CEO_EMAILS.has(email)) {
+    role = 'superadmin';
   }
 
   return { authenticated: true, role, user, token };

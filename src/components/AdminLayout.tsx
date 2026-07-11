@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: 'Orders', to: '/admin/orders' },
   { label: 'Manufacturers', to: '/admin/manufacturers' },
   { label: 'Discounts', to: '/admin/discounts' },
+  { label: 'Roles', to: '/admin/roles' },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

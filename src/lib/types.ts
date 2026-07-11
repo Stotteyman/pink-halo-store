@@ -60,6 +60,9 @@ export interface PHProduct {
   slug?: string;
   description?: string;
   category_id?: string;
+  /** Category name or slug; resolved to category_id server-side on create/update. */
+  category?: string;
+  category_name?: string;
   manufacturer_id?: string;
   fulfillment_method?: 'unassigned' | 'in_house' | 'manufacturer' | 'print_on_demand' | 'dropship';
   manufacturer_sku?: string;
@@ -80,6 +83,14 @@ export interface PHProduct {
   updated_at: string;
   categories?: Pick<PHCategory, 'name' | 'slug'>;
   product_variants?: PHProductVariant[];
+}
+
+export interface PHUserRole {
+  id: string;
+  user_id: string;
+  role: 'customer' | 'staff' | 'manager' | 'admin' | 'superadmin';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PHOrderItem {

@@ -24,6 +24,22 @@ function supabase() {
   });
 }
 
+// Accepts a `category` field holding a category name or slug and turns it into
+// the matching category_id. Without this, admin-created products have no category
+// and never render into a storefront room. Mutates `record` in place.
+async function resolveCategory(db, record) {
+  if (!record || record.category == null) return;
+  const wanted = String(record.category).trim().toLowerCase();
+  delete record.category;
+  if (!wanted || record.category_id) return;
+  try {
+    const { data: cats } = await db.from('categories').select('id,name,slug');
+    const match = (cats || []).find(c =>
+      String(c.name || '').toLowerCase() === wanted || String(c.slug || '').toLowerCase() === wanted);
+    if (match) record.category_id = match.id;
+  } catch { /* leave category_id unset if lookup fails */ }
+}
+
 function isMissingProductsTable(error) {
   const message = String(error?.message || '').toLowerCase();
   return error?.code === 'PGRST205' || (message.includes('could not find the table') && message.includes(PRODUCTS_TABLE.toLowerCase()));
@@ -98,6 +114,9 @@ export async function handler(event) {
       product.slug = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
 
+    // Resolve a category name/slug into its category_id so the product lands in a room
+    await resolveCategory(db, product);
+
     const { data, error } = await db.from(PRODUCTS_TABLE).insert(product).select().single();
     if (error) {
       if (isMissingProductsTable(error)) return json(503, { error: 'Product catalog is not configured yet' });
@@ -120,6 +139,9 @@ export async function handler(event) {
 
     const { id, variants, ...updates } = body;
     if (!id) return json(400, { error: 'id is required' });
+
+    // Resolve a category name/slug into its category_id on edit as well
+    await resolveCategory(db, updates);
 
     const { data, error } = await db.from(PRODUCTS_TABLE).update(updates).eq('id', id).select().single();
     if (error) {

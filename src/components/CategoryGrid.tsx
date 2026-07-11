@@ -1,52 +1,33 @@
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { getCategories } from '../lib/products';
 
-interface CategoryGridProps {
-  onCategorySelect?: (category: string) => void;
-}
+const EMOJI: Record<string, string> = {
+  Dresses: '👗',
+  Tops: '👚',
+  Lounge: '🧸',
+  Accessories: '💍',
+  Sale: '🏷️',
+};
 
-const collections = [
-  { title: 'Halo Lounge', label: 'Luxury comfort', href: '/women' },
-  { title: 'Angel Energy', label: 'Coquette & feminine', href: '/women' },
-  { title: 'Halo Street', label: 'Streetwear glam', href: '/men' },
-  { title: 'Cloud Nine', label: 'Sleepwear & self care', href: '/women' },
-  { title: 'Everyday Essentials', label: 'Basics, but better', href: '/women' }
-];
-
-export default function CategoryGrid({ onCategorySelect }: CategoryGridProps) {
+export default function CategoryGrid() {
   const navigate = useNavigate();
-
-  const handleCategoryClick = (href: string) => {
-    navigate(href);
-    onCategorySelect?.(href.slice(1));
-  };
+  const categories = getCategories();
 
   return (
-    <section className="py-16 px-4 bg-pink-50">
-      <div className="container mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-xs uppercase tracking-[0.4em] text-pink-500 mb-4">Collection concepts</p>
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-pink-900">A polished edit of every halo style.</h2>
-          <p className="mt-4 max-w-3xl mx-auto text-pink-700">Inspire your next outfit with soft shades, satin textures, rhinestone details, and everyday confidence.</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5 mb-10">
-          {collections.map((collection) => (
+    <section className="py-14 px-4 bg-white">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-serif font-bold text-pink-900 text-center mb-8">
+          Shop by category
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {categories.map((category) => (
             <button
-              key={collection.title}
-              onClick={() => handleCategoryClick(collection.href)}
-              className="group text-left rounded-[2rem] border border-pink-200 bg-white/95 p-6 shadow-[0_20px_50px_rgba(255,132,175,0.12)] transition hover:-translate-y-1"
+              key={category}
+              onClick={() => navigate(`/category/${category.toLowerCase()}`)}
+              className="rounded-3xl border border-pink-100 bg-pink-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-lg"
             >
-              <div className="overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-pink-100 via-white to-rose-100 p-6 shadow-inner mb-5">
-                <p className="text-2xl font-serif font-bold text-pink-900 leading-tight">{collection.title}</p>
-              </div>
-              <p className="text-sm uppercase tracking-[0.18em] text-pink-500 mb-3">{collection.label}</p>
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-pink-700">
-                View collection
-                <svg className="w-4 h-4 text-pink-500 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </span>
+              <div className="text-3xl mb-3">{EMOJI[category] ?? '✨'}</div>
+              <p className="font-semibold text-pink-900">{category}</p>
             </button>
           ))}
         </div>

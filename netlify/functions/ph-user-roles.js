@@ -21,7 +21,7 @@ export async function handler(event) {
         .order('updated_at', { ascending: false })
         .limit(500);
       if (error) return json(500, { error: error.message });
-      return json(200, { roles: data || [] });
+      return json(200, { roles: data || [], current_role: auth.role });
     }
 
     const { data, error } = await db
@@ -30,7 +30,7 @@ export async function handler(event) {
       .eq('user_id', auth.user.id)
       .limit(1);
     if (error) return json(500, { error: error.message });
-    return json(200, { roles: data || [] });
+    return json(200, { roles: data || [], current_role: auth.role });
   }
 
   if (event.httpMethod === 'PUT') {

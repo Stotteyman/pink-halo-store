@@ -16,26 +16,24 @@ import AdminEditProductPage from './pages/AdminEditProductPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminManufacturersPage from './pages/AdminManufacturersPage';
 import AdminDiscountsPage from './pages/AdminDiscountsPage';
+import AdminRolesPage from './pages/AdminRolesPage';
 import { loadProducts, saveProducts, getCategories } from './lib/products';
-import { fetchPublishedStorefrontProducts, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
+import { fetchCurrentUserRole, fetchPublishedStorefrontProducts, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
 import type { Product } from './lib/types';
 import { clearGuestCart, ensureGuestSession, loadGuestCart, saveGuestCart } from './lib/session';
-import HomePage from './pages/HomePage';
 import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
 
-const categoryNames = ['Men', 'Women', 'Children', 'Pets'] as const;
+const CATEGORIES = getCategories();
 
-type CategoryName = (typeof categoryNames)[number] | 'All';
-
-function normalizeCategoryPath(pathname: string): CategoryName {
-  const segment = pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
-  const found = categoryNames.find((name) => name.toLowerCase() === segment);
-  return found ?? 'All';
+function categoryFromPath(pathname: string): string {
+  const match = pathname.match(/^\/category\/([^/]+)/);
+  if (!match) return 'All';
+  const segment = decodeURIComponent(match[1]).toLowerCase();
+  return CATEGORIES.find((name) => name.toLowerCase() === segment) ?? 'All';
 }
 
 function categoryRoute(category: string) {
-  return category === 'All' ? '/' : `/${category.toLowerCase()}`;
+  return category === 'All' ? '/shop' : `/category/${category.toLowerCase()}`;
 }
 
 function slugify(text: string) {
@@ -43,10 +41,6 @@ function slugify(text: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-}
-
-function productRoute(product: Product) {
-  return `/${product.category.toLowerCase()}/${slugify(product.name)}`;
 }
 
 function formatCurrency(value: number) {
@@ -60,74 +54,11 @@ function productMask(text: string) {
   return text.length > 85 ? `${text.slice(0, 82)}...` : text;
 }
 
-const categoryThemes = {
-  All: {
-    title: 'Find the perfect fit across every collection',
-    subtitle: 'Experience premium curation for men, women, children, and pets with rich styling and effortless browsing.',
-    buttonLabel: 'Browse all categories',
-    image: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=80',
-    accent: ['#ff84cb', '#7b5cff'],
-    features: [
-      'Curated looks for every lifestyle',
-      'Fresh apparel and accessories in one place',
-      'Fast browsing with clear product detail'
-    ]
-  },
-  Men: {
-    title: 'Modern essentials for him',
-    subtitle: 'Bold, refined looks built for confident everyday wear and effortless style.',
-    buttonLabel: 'Shop the men’s collection',
-    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=80',
-    accent: ['#74c7ff', '#1f4eab'],
-    features: [
-      'Tailored everyday pieces and sneakers',
-      'Durable fabrics for daily wear',
-      'Streamlined silhouettes with sharp detail'
-    ]
-  },
-  Women: {
-    title: 'Refined style for her',
-    subtitle: 'Soft silhouettes, statement details, and polished pieces designed to elevate every outfit.',
-    buttonLabel: 'Shop the women’s collection',
-    image: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=1200&q=80',
-    accent: ['#ff9cd6', '#ff5d7c'],
-    features: [
-      'Everyday essentials with elevated details',
-      'Transitional styles for work and weekends',
-      'Soft fabrics and contemporary fits'
-    ]
-  },
-  Children: {
-    title: 'Playful style for kids',
-    subtitle: 'Bright, comfortable apparel and playful pieces built for every adventurous day.',
-    buttonLabel: 'Shop the children’s collection',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
-    accent: ['#f8d64c', '#6bc1ff'],
-    features: [
-      'Soft, easy-care kidswear',
-      'Bright colors and playful prints',
-      'Durable layers for active play'
-    ]
-  },
-  Pets: {
-    title: 'Cozy accessories for pets',
-    subtitle: 'Premium pet essentials with plush comfort, stylish flair, and trustworthy durability.',
-    buttonLabel: 'Shop the pet collection',
-    image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80',
-    accent: ['#93f4d1', '#5ddeff'],
-    features: [
-      'Soft beds and comfortable pet gear',
-      'Everyday essentials for cats and dogs',
-      'Quality materials designed to last'
-    ]
-  }
-};
-
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isImmersiveHome = location.pathname === '/';
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isLandingRoute = location.pathname === '/';
   const [products, setProducts] = useState<Product[]>(loadProducts());
   const [category, setCategory] = useState<string>('All');
   const [search, setSearch] = useState('');
@@ -148,11 +79,25 @@ function App() {
       .then(publishedProducts => setProducts(publishedProducts))
       .catch(error => console.error('Storefront catalog error', error));
 
+    const loadSessionRole = async (session: any) => {
+      if (!session?.user) return;
+      try {
+        const data = await fetchCurrentUserRole();
+        if (data?.current_role) {
+          setUserRole(String(data.current_role));
+          return;
+        }
+      } catch {
+        // Ignore backend role lookup failure and fall back to metadata.
+      }
+      const fallbackRole = session.user?.app_metadata?.role || 'customer';
+      setUserRole(String(fallbackRole));
+    };
+
     supabaseClient.auth.getSession().then(({ data: sessionData }) => {
       const signedIn = Boolean(sessionData.session);
       setAuthSession(signedIn);
-      const role = sessionData.session?.user?.app_metadata?.role || 'customer';
-      setUserRole(String(role));
+      if (signedIn) loadSessionRole(sessionData.session);
 
       // Clear OAuth callback hash after session has been read.
       if (window.location.hash.includes('access_token=')) {
@@ -162,15 +107,18 @@ function App() {
 
     const { data: authSubscription } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       setAuthSession(Boolean(session));
-        const nextRole = session?.user?.app_metadata?.role || 'customer';
-      setUserRole(String(nextRole));
+      if (session) {
+        loadSessionRole(session);
+      } else {
+        setUserRole('guest');
+      }
     });
 
     return () => authSubscription.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    setCategory(normalizeCategoryPath(location.pathname));
+    setCategory(categoryFromPath(location.pathname));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -179,9 +127,6 @@ function App() {
       setCart({});
       clearGuestCart();
       setNotification('Checkout complete. Thank you for shopping Pink Halo.');
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (checkoutState === 'donation-success') {
-      setNotification('Donation complete. Thank you for supporting the Pink Halo community.');
       window.history.replaceState({}, '', window.location.pathname);
     } else if (checkoutState === 'cancel') {
       setNotification('Checkout was canceled. Your bag is still here.');
@@ -208,8 +153,6 @@ function App() {
     });
   }, [category, products, search]);
 
-  const activeTheme = categoryThemes[category as keyof typeof categoryThemes] || categoryThemes.All;
-
   const cartItems = useMemo(() => {
     return Object.entries(cart).map(([id, quantity]) => {
       const product = products.find((item) => item.id === id);
@@ -227,18 +170,7 @@ function App() {
     setCartOpen(false);
   }
 
-  function updateProductStock(id: string, quantity: number) {
-    setProducts((current) => {
-      const nextProducts = current.map((product) =>
-        product.id === id
-          ? { ...product, stock: Math.max(0, Math.min(999, quantity)) }
-          : product
-      );
-      return nextProducts;
-    });
-  }
-
-  function addItemToCart(product: Product, quantity: number = 1, openLegacyDrawer: boolean = true) {
+  function addItemToCart(product: Product, quantity: number = 1, openDrawer: boolean = true) {
     if (product.stock <= 0 && !product.preorder) {
       setNotification('This item is currently out of stock.');
       return;
@@ -247,7 +179,7 @@ function App() {
       ...current,
       [product.id]: (current[product.id] || 0) + quantity
     }));
-    if (openLegacyDrawer) setCartOpen(true);
+    if (openDrawer) setCartOpen(true);
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
@@ -278,6 +210,10 @@ function App() {
   }
 
   async function createCheckoutSession() {
+    if (cartItems.length === 0) {
+      setNotification('Your cart is empty.');
+      return;
+    }
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -305,22 +241,6 @@ function App() {
     }
   }
 
-  async function createDonationSession(amount: number) {
-    const response = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        checkoutType: 'donation',
-        donationAmount: Math.round(amount * 100),
-        guestSessionId: ensureGuestSession(),
-        customerMode: authSession ? 'authenticated' : 'guest',
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.url) throw new Error(data.error || 'Unable to start donation checkout.');
-    window.location.href = data.url;
-  }
-
   const isStaff = ['staff', 'manager', 'admin', 'superadmin'].includes(userRole.toLowerCase());
 
   const adminAccessGate = (
@@ -345,67 +265,37 @@ function App() {
 
   const storefrontPage = (
     <>
-      {/* Animated Hero on Homepage */}
-      {category === 'All' && (
+      {/* Simple, cute landing — only on the home route */}
+      {isLandingRoute && (
         <>
           <AnimatedHero
-            onShopWomen={() => navigate('/women')}
+            onShopNow={() => navigate('/shop')}
             onExploreCollections={() => {
               const element = document.getElementById('products');
               element?.scrollIntoView({ behavior: 'smooth' });
             }}
           />
-
-          {/* Category Showcase */}
-          <CategoryGrid
-            onCategorySelect={(cat) => navigate(`/${cat.toLowerCase()}`)}
-          />
+          <CategoryGrid />
         </>
       )}
 
-      {/* Category-Specific Hero Section */}
-      {category !== 'All' && (
-        <section
-          className="relative py-20 px-4 overflow-hidden"
-          style={{
-            backgroundImage: `linear-gradient(135deg, ${activeTheme.accent[0]}22, ${activeTheme.accent[1]}33), url(${activeTheme.image})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        >
-          <motion.div className="max-w-6xl mx-auto" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: 'easeOut' }}>
-            <div>
-              <span className="inline-block px-4 py-2 rounded-full bg-pink-500/20 border border-pink-500/50 text-pink-300 text-sm font-semibold mb-4">
-                {category === 'All' ? 'Shop every category' : `${category} collection`}
-              </span>
-              <h1 className="text-5xl md:text-6xl font-serif font-bold mb-4 text-white">{activeTheme.title}</h1>
-              <p className="text-lg text-pink-100 mb-8 max-w-2xl">{activeTheme.subtitle}</p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={() => {
-                    const element = document.getElementById('products');
-                    element?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="px-8 py-3 luxury-cta-gradient text-white font-semibold rounded-full hover:shadow-xl transition-all"
-                >
-                  {activeTheme.buttonLabel}
-                </button>
-                <button onClick={() => navigate('/')} className="px-8 py-3 border-2 border-pink-300 text-white font-semibold rounded-full hover:bg-white/10 transition-all">
-                  View All Products
-                </button>
-              </div>
-            </div>
-          </motion.div>
+      {/* Category header */}
+      {!isLandingRoute && category !== 'All' && (
+        <section className="bg-pink-50 border-b border-pink-100 py-10 px-4">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-xs uppercase tracking-[0.35em] text-pink-500 mb-2">Pink Halo</p>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-pink-900">{category}</h1>
+          </div>
         </section>
       )}
 
-      {/* Search and Filter */}
-      <section className="sticky top-20 z-40 backdrop-blur-md bg-gradient-to-b from-neutral-900/80 to-neutral-900/40 border-b border-pink-500/20 py-4">
-        <div className="max-w-6xl mx-auto px-4 flex gap-4">
+      {/* Search and filter */}
+      <section className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-pink-100 py-3">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-300">🔍</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-400">🔍</span>
             <input
-              className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-pink-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-pink-50 border border-pink-200 rounded-full text-pink-900 placeholder-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-300"
               placeholder="Search products..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -414,10 +304,10 @@ function App() {
           <select
             value={category}
             onChange={(event) => navigate(categoryRoute(event.target.value))}
-            className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-pink-400"
+            className="px-4 py-2.5 bg-pink-50 border border-pink-200 rounded-full text-pink-900 focus:outline-none focus:ring-2 focus:ring-pink-300"
           >
             <option value="All">All Categories</option>
-            {getCategories().map((cat) => (
+            {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -426,84 +316,74 @@ function App() {
         </div>
       </section>
 
-      {/* Products Grid */}
-      <section id="products" className="py-16 px-4">
+      {/* Products grid */}
+      <section id="products" className="py-12 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           {filteredProducts.length > 0 ? (
             <>
-              <motion.div className="mb-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h2 className="text-4xl font-serif font-bold mb-2 text-white">
-                  {category === 'All' ? 'All Products' : `${category} Collection`}
+              <div className="mb-8 flex items-end justify-between flex-wrap gap-2">
+                <h2 className="text-2xl md:text-3xl font-serif font-bold text-pink-900">
+                  {category === 'All' ? 'Shop all' : category}
                 </h2>
-                <p className="text-pink-200">Showing {filteredProducts.length} items</p>
-              </motion.div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                <p className="text-sm text-pink-500">{filteredProducts.length} item{filteredProducts.length === 1 ? '' : 's'}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} onAdd={addItemToCart} formatCurrency={formatCurrency} productMask={productMask} />
                 ))}
               </div>
             </>
           ) : (
-            <motion.div className="text-center py-20" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <h3 className="text-2xl font-serif font-semibold text-white mb-4">No products found</h3>
-              <p className="text-pink-200">Try adjusting your search or filters</p>
-            </motion.div>
+            <div className="text-center py-20">
+              <h3 className="text-xl font-serif font-semibold text-pink-900 mb-2">
+                {products.length === 0 ? 'New arrivals coming soon' : 'No products found'}
+              </h3>
+              <p className="text-pink-500">
+                {products.length === 0 ? 'Check back shortly — the collection is being stocked.' : 'Try adjusting your search or category.'}
+              </p>
+            </div>
           )}
         </div>
       </section>
 
-      {/* Cart Drawer */}
+      {/* Cart drawer */}
       {cartOpen && (
-        <motion.div
-          className="fixed inset-0 bg-black/40 z-40"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+        <div
+          className="fixed inset-0 bg-black/30 z-40"
           onClick={closeCart}
         />
       )}
 
       <motion.aside
-        className="fixed right-0 top-0 h-full w-full max-w-md bg-gradient-to-b from-neutral-900 to-neutral-950 border-l border-pink-500/20 z-50 flex flex-col"
-        initial={{ opacity: 0, x: 500 }}
-        animate={cartOpen ? { opacity: 1, x: 0 } : { opacity: 0, x: 500 }}
-        transition={{ duration: 0.3 }}
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-white border-l border-pink-100 z-50 flex flex-col shadow-2xl"
+        initial={{ x: 500 }}
+        animate={cartOpen ? { x: 0 } : { x: 520 }}
+        transition={{ duration: 0.28 }}
         aria-modal="true"
         role="dialog"
       >
-        {/* Cart Header */}
-        <div className="p-6 border-b border-pink-500/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-serif font-bold text-white">Shopping Cart</h3>
-              <p className="text-pink-200 text-sm mt-2">{cartItems.length} item{cartItems.length === 1 ? '' : 's'}</p>
-            </div>
-            <motion.button
-              type="button"
-              onClick={closeCart}
-              aria-label="Close cart"
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </motion.button>
+        <div className="p-6 border-b border-pink-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-serif font-bold text-pink-900">Your bag</h3>
+            <p className="text-pink-500 text-sm mt-1">{cartItems.length} item{cartItems.length === 1 ? '' : 's'}</p>
           </div>
+          <button
+            type="button"
+            onClick={closeCart}
+            aria-label="Close cart"
+            className="p-2 hover:bg-pink-50 rounded-full transition-colors text-pink-500"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-6">
           {cartItems.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {cartItems.map((item) => (
-                <motion.div
-                  key={item.product.id}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-4"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
+                <div key={item.product.id} className="bg-pink-50 border border-pink-100 rounded-2xl p-4">
                   <div className="flex gap-4">
                     <img
                       src={item.product.imageUrl}
@@ -511,113 +391,79 @@ function App() {
                       className="w-20 h-20 object-cover rounded-lg"
                     />
                     <div className="flex-1">
-                      <h4 className="font-semibold text-white text-sm">{item.product.name}</h4>
-                      <p className="text-pink-300 font-bold mt-2">{formatCurrency(item.product.price)}</p>
+                      <h4 className="font-semibold text-pink-900 text-sm">{item.product.name}</h4>
+                      <p className="text-pink-600 font-bold mt-1">{formatCurrency(item.product.price)}</p>
                       <div className="flex items-center gap-2 mt-3">
-                        <motion.button
+                        <button
                           type="button"
                           onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
-                          className="p-1 hover:bg-white/10 rounded disabled:opacity-50"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
+                          className="w-7 h-7 rounded-full border border-pink-200 hover:bg-pink-100 text-pink-700"
                         >
                           −
-                        </motion.button>
-                        <span className="w-8 text-center text-white">{item.quantity}</span>
-                        <motion.button
+                        </button>
+                        <span className="w-8 text-center text-pink-900">{item.quantity}</span>
+                        <button
                           type="button"
                           onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
-                          disabled={item.quantity >= item.product.stock}
-                          className="p-1 hover:bg-white/10 rounded disabled:opacity-50"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
+                          className="w-7 h-7 rounded-full border border-pink-200 hover:bg-pink-100 text-pink-700"
                         >
                           +
-                        </motion.button>
+                        </button>
+                        <button
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="ml-auto text-pink-400 hover:text-pink-600 text-sm"
+                        >
+                          Remove
+                        </button>
                       </div>
                     </div>
-                    <motion.button
-                      onClick={() => removeFromCart(item.product.id)}
-                      className="text-pink-300 hover:text-pink-400 text-lg"
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      ✕
-                    </motion.button>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full">
-              <svg className="w-16 h-16 text-pink-300/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 7m10 0h2m-2 0h-2m2 0a1 1 0 11-2 0 1 1 0 012 0zm-6 0a1 1 0 11-2 0 1 1 0 012 0z"
-                />
-              </svg>
-              <p className="text-pink-200 text-center">Your cart is empty. Add an item to get started.</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <p className="text-pink-500">Your bag is empty. Add something you love to get started.</p>
             </div>
           )}
         </div>
 
-        {/* Cart Footer */}
         {cartItems.length > 0 && (
-          <div className="border-t border-pink-500/20 p-6 space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-gray-300">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-300">
-                <span>Shipping:</span>
-                <span>Calculated at checkout</span>
-              </div>
+          <div className="border-t border-pink-100 p-6 space-y-4">
+            <div className="flex justify-between font-bold text-pink-900">
+              <span>Total</span>
+              <span>{formatCurrency(total)}</span>
             </div>
-            <div className="pt-4 border-t border-white/10">
-              <div className="flex justify-between font-bold text-white mb-4">
-                <span>Total:</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-              <motion.button
-                onClick={createCheckoutSession}
-                className="w-full luxury-cta-gradient text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Proceed to Checkout
-              </motion.button>
-            </div>
+            <p className="text-xs text-pink-500 -mt-2">Shipping calculated at checkout. No account needed.</p>
+            <button
+              onClick={createCheckoutSession}
+              className="w-full luxury-cta-gradient text-white font-semibold py-3 rounded-full shadow-lg hover:shadow-xl"
+            >
+              Checkout
+            </button>
           </div>
         )}
       </motion.aside>
-
     </>
   );
 
   return (
-    <div className={isAdminRoute ? 'min-h-screen' : 'min-h-screen bg-neutral-900 text-white'}>
-      {!isImmersiveHome && !isAdminRoute && <Header cartCount={cartItems.length} onToggleCart={toggleCart} />}
+    <div className={isAdminRoute ? 'min-h-screen' : 'min-h-screen bg-white text-pink-900 flex flex-col'}>
+      {!isAdminRoute && <Header cartCount={cartItems.length} onToggleCart={toggleCart} />}
 
       {notification && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-neutral-900 border border-pink-500/40 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-4 max-w-md">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-white border border-pink-200 text-pink-900 px-5 py-3 rounded-xl shadow-lg flex items-center gap-4 max-w-md">
           <p className="text-sm">{notification}</p>
-          <button type="button" onClick={() => setNotification(null)} aria-label="Dismiss" className="text-white/60 hover:text-white">×</button>
+          <button type="button" onClick={() => setNotification(null)} aria-label="Dismiss" className="text-pink-400 hover:text-pink-700">×</button>
         </div>
       )}
 
-      <main>
+      <main className="flex-1">
         <Routes>
-          <Route path="/" element={<HomePage products={products} cart={cart} onAddToCart={(product) => addItemToCart(product, 1, false)} onUpdateQuantity={updateCartQuantity} onRemoveFromCart={removeFromCart} onCheckout={createCheckoutSession} onDonate={createDonationSession} />} />
-          <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} products={products} />} />
-          <Route path="/checkout" element={<CheckoutPage cart={cart} products={products} />} />
-          <Route path="/men" element={storefrontPage} />
-          <Route path="/women" element={storefrontPage} />
-          <Route path="/children" element={storefrontPage} />
-          <Route path="/pets" element={storefrontPage} />
+          <Route path="/" element={storefrontPage} />
+          <Route path="/shop" element={storefrontPage} />
+          <Route path="/category/:name" element={storefrontPage} />
+          <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} products={products} onCheckout={createCheckoutSession} />} />
           <Route path="/:category/:slug" element={<ProductDetail products={products} onAdd={addItemToCart} setCartOpen={setCartOpen} formatCurrency={formatCurrency} />} />
           {/* ── Admin routes ── */}
           <Route path="/admin" element={adminRoute(<AdminDashboardPage />)} />
@@ -627,12 +473,13 @@ function App() {
           <Route path="/admin/orders" element={adminRoute(<AdminOrdersPage />)} />
           <Route path="/admin/manufacturers" element={adminRoute(<AdminManufacturersPage />)} />
           <Route path="/admin/discounts" element={adminRoute(<AdminDiscountsPage />)} />
+          <Route path="/admin/roles" element={adminRoute(<AdminRolesPage />)} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 
-      {!isImmersiveHome && !isAdminRoute && <Footer />}
+      {!isAdminRoute && <Footer />}
     </div>
   );
 }

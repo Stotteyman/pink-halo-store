@@ -14,6 +14,8 @@ interface ScrapedProduct {
   error?: string;
 }
 
+const CATEGORIES = ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
+
 interface DraftVariant {
   name: string;
   color: string;
@@ -47,7 +49,8 @@ export default function AdminAddProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [status, setStatus] = useState<ProductStatus>('draft');
+  const [category, setCategory] = useState('');
+  const [status, setStatus] = useState<ProductStatus>('active');
   const [variants, setVariants] = useState<DraftVariant[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -116,6 +119,7 @@ export default function AdminAddProductPage() {
 
   async function handleSave() {
     if (!name.trim() || !price) { setSaveError('Name and price are required.'); return; }
+    if (!category) { setSaveError('Choose a category — it decides which room the product shows up in.'); return; }
     setSaving(true);
     setSaveError('');
     try {
@@ -143,6 +147,7 @@ export default function AdminAddProductPage() {
       await createProduct({
         name: name.trim(),
         description: description.trim(),
+        category,
         price: parseFloat(price),
         compare_at_price: compareAt ? parseFloat(compareAt) : undefined,
         cost: cost ? parseFloat(cost) : undefined,
@@ -208,6 +213,14 @@ export default function AdminAddProductPage() {
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={4} value={description} onChange={e => setDescription(e.target.value)} placeholder="Product description" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Category * <span className="font-normal text-gray-400">— which room it appears in</span></label>
+            <select className="w-full border rounded-lg px-3 py-2 text-sm" value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="">Select a category…</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
