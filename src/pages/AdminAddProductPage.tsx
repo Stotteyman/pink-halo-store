@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createProduct, fetchManufacturers } from '../lib/supabase';
+import { createProduct, fetchManufacturers, uploadProductImage } from '../lib/supabase';
 import type { PHManufacturer, ProductStatus } from '../lib/types';
 
 interface ScrapedProduct {
@@ -14,7 +14,7 @@ interface ScrapedProduct {
   error?: string;
 }
 
-const CATEGORIES = ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
+const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Sets', 'Lounge', 'Accessories', 'Sale'];
 
 interface DraftVariant {
   name: string;
@@ -47,6 +47,8 @@ export default function AdminAddProductPage() {
   const [manufacturers, setManufacturers] = useState<PHManufacturer[]>([]);
   const [imageInput, setImageInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [category, setCategory] = useState('');
@@ -92,6 +94,22 @@ export default function AdminAddProductPage() {
     const url = imageInput.trim();
     if (url && !images.includes(url)) setImages([...images, url]);
     setImageInput('');
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true); setUploadError('');
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) uploaded.push(await uploadProductImage(file));
+      setImages((prev) => [...prev, ...uploaded.filter((u) => !prev.includes(u))]);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   }
 
   function addTag() {
@@ -284,6 +302,13 @@ export default function AdminAddProductPage() {
               <input className="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="Image URL" value={imageInput} onChange={e => setImageInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addImage()} />
               <button onClick={addImage} className="border px-3 py-2 rounded-lg text-sm hover:bg-gray-50">Add</button>
             </div>
+            <div className="mt-2">
+              <label className={`inline-flex items-center gap-2 border border-dashed border-pink-300 rounded-lg px-3 py-2 text-sm text-pink-600 ${uploading ? 'opacity-60' : 'cursor-pointer hover:bg-pink-50'}`}>
+                <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={handleUpload} />
+                {uploading ? 'Uploading…' : '⬆ Upload photos from your device'}
+              </label>
+              {uploadError && <p className="text-red-500 text-xs mt-1">{uploadError}</p>}
+            </div>
           </div>
 
           {/* Tags */}
@@ -335,14 +360,27 @@ export default function AdminAddProductPage() {
             )}
           </div>
 
-          {/* Status */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
-            <select className="border rounded-lg px-3 py-2 text-sm" value={status} onChange={e => setStatus(e.target.value as ProductStatus)}>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
+          {/* Status & availability */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+              <select className="border rounded-lg px-3 py-2 text-sm" value={status} onChange={e => setStatus(e.target.value as ProductStatus)}>
+                <option value="draft">Draft — hidden from the store</option>
+                <option value="active">Active — visible &amp; for sale</option>
+                <option value="archived">Archived — hidden from the store</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Availability</label>
+              <label className="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={tags.includes('preorder')}
+                  onChange={e => setTags(e.target.checked ? [...tags, 'preorder'] : tags.filter(t => t !== 'preorder'))}
+                />
+                <span>Preorder — buyable now with a “Preorder” badge, even at 0 stock</span>
+              </label>
+            </div>
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">

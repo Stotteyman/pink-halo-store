@@ -44,7 +44,7 @@ export default async function createCheckoutSession(request) {
     const db = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
     const { data: products, error } = await db
       .from('pinkhalo_storefront_products')
-      .select('id,name,price,stock,stripe_price_id')
+      .select('id,name,price,stock,stripe_price_id,preorder')
       .in('id', ids);
     if (error) return json(503, { error: 'Unable to verify the product catalog.' });
     const productsById = new Map((products || []).map(product => [String(product.id), product]));
@@ -53,7 +53,9 @@ export default async function createCheckoutSession(request) {
       const product = productsById.get(String(requested.productId));
       const quantity = Math.round(Number(requested.quantity) || 1);
       if (!product) return json(400, { error: 'A product is unavailable or no longer published.' });
-      if (quantity < 1 || quantity > 20 || quantity > Number(product.stock)) return json(400, { error: `${product.name} does not have enough stock.` });
+      if (quantity < 1 || quantity > 20) return json(400, { error: `${product.name} has an invalid quantity.` });
+      // Preorder items are sellable regardless of stock on hand
+      if (!product.preorder && quantity > Number(product.stock)) return json(400, { error: `${product.name} does not have enough stock.` });
       verifiedItems.push({ name: product.name, amount: Math.round(Number(product.price) * 100), quantity, productId: product.id, url: '' });
     }
     items = verifiedItems;

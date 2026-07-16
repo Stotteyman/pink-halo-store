@@ -77,10 +77,14 @@ export async function signOutSupabase() {
   await supabaseClient.auth.signOut();
 }
 
-export async function updateProfile(updates: { fullName?: string; password?: string }) {
+export async function updateProfile(updates: { fullName?: string; phone?: string; password?: string }) {
   if (!supabaseClient) throw new Error('Supabase is not configured');
   const payload: { data?: Record<string, unknown>; password?: string } = {};
-  if (updates.fullName !== undefined) payload.data = { full_name: updates.fullName };
+  const metadata: Record<string, unknown> = {};
+  if (updates.fullName !== undefined) metadata.full_name = updates.fullName;
+  // Stored in user metadata (not auth.phone) so no SMS verification is needed
+  if (updates.phone !== undefined) metadata.phone = updates.phone;
+  if (Object.keys(metadata).length > 0) payload.data = metadata;
   if (updates.password) payload.password = updates.password;
   const { data, error } = await supabaseClient.auth.updateUser(payload);
   if (error) throw error;
@@ -109,19 +113,26 @@ export async function fetchProducts(params?: Record<string, string>) {
   return apiFetch('ph-products' + qs, { method: 'GET' });
 }
 
+function slugify(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 export async function fetchPublishedStorefrontProducts(): Promise<Product[]> {
   if (!supabaseClient) return [];
   const { data, error } = await supabaseClient
     .from('pinkhalo_storefront_products')
-    .select('id,name,description,price,compare_at_price,preorder,stock,images,category_name');
+    .select('id,name,slug,description,price,compare_at_price,preorder,stock,images,category_name,tags');
   if (error) throw error;
-  const categories: Category[] = ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
+  const categories: Category[] = ['Dresses', 'Tops', 'Bottoms', 'Sets', 'Lounge', 'Accessories', 'Sale'];
   return (data || []).flatMap(row => {
     const category = categories.find(item => item.toLowerCase() === String(row.category_name || '').toLowerCase());
     if (!category) return [];
+    const name = String(row.name);
+    const slug = row.slug ? String(row.slug) : slugify(name);
     return [{
       id: String(row.id),
-      name: String(row.name),
+      name,
+      slug,
       description: String(row.description || ''),
       price: Number(row.price),
       compareAtPrice: row.compare_at_price != null ? Number(row.compare_at_price) : undefined,
@@ -129,7 +140,8 @@ export async function fetchPublishedStorefrontProducts(): Promise<Product[]> {
       stock: Number(row.stock),
       imageUrl: Array.isArray(row.images) && row.images[0] ? String(row.images[0]) : '',
       category,
-      link: '',
+      link: `/${category.toLowerCase()}/${slug}`,
+      tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
       profitMargin: 0,
     }];
   });
@@ -137,6 +149,20 @@ export async function fetchPublishedStorefrontProducts(): Promise<Product[]> {
 
 export async function fetchProduct(id: string) {
   return apiFetch('ph-products?id=' + id, { method: 'GET' });
+}
+
+// Upload a product image file to Supabase Storage and return its public URL.
+const PRODUCT_IMAGE_BUCKET = 'product-images';
+export async function uploadProductImage(file: File): Promise<string> {
+  if (!supabaseClient) throw new Error('Supabase is not configured');
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabaseClient.storage
+    .from(PRODUCT_IMAGE_BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
+  if (error) throw new Error(error.message || 'Image upload failed. Make sure you are signed in.');
+  const { data } = supabaseClient.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export async function createProduct(product: Partial<PHProduct> & { variants?: unknown[] }) {

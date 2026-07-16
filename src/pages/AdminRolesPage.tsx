@@ -37,7 +37,7 @@ export default function AdminRolesPage() {
 
   const canUpdate = ['manager', 'admin', 'superadmin'].includes(currentRole.toLowerCase());
 
-  async function handleRoleChange(userId: string, nextRole: string) {
+  async function handleRoleChange(userId: string, nextRole: PHUserRole['role']) {
     setSaving(userId);
     setError('');
     try {
@@ -57,7 +57,7 @@ export default function AdminRolesPage() {
           <div>
             <h1 className="text-xl md:text-2xl font-semibold text-gray-900">User roles</h1>
             <p className="text-sm text-gray-500 mt-1">
-              View and manage Pink Halo role assignments. CEO email users are automatically treated as <strong>superadmin</strong>.
+              View and manage Pink Halo role assignments.
             </p>
           </div>
           <div className="text-sm text-gray-600">
@@ -87,14 +87,17 @@ export default function AdminRolesPage() {
         ) : (
           roles.map((role) => (
             <div key={role.id} className="grid grid-cols-5 gap-4 px-6 py-4 border-t border-gray-100 items-center">
-              <div className="col-span-2 text-sm text-gray-900 break-words">{role.user_id}</div>
+              <div className="col-span-2 text-sm break-words">
+                <p className="text-gray-900 font-medium">{role.user_name || role.user_email || role.user_id}</p>
+                {role.user_name && role.user_email && <p className="text-gray-500 text-xs mt-0.5">{role.user_email}</p>}
+              </div>
               <div className="text-sm text-gray-700 capitalize">{ROLE_LABELS[role.role] ?? role.role}</div>
               <div className="text-sm text-gray-500">Assigned</div>
               <div className="flex justify-end gap-2">
                 {canUpdate ? (
                   <select
                     value={role.role}
-                    onChange={(e) => handleRoleChange(role.user_id, e.target.value)}
+                    onChange={(e) => handleRoleChange(role.user_id, e.target.value as PHUserRole['role'])}
                     disabled={saving === role.user_id}
                     className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
                   >
@@ -112,14 +115,6 @@ export default function AdminRolesPage() {
         )}
       </div>
 
-      {canUpdate && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900 mb-2">CEO role note</p>
-          <p>
-            Users signed in with the CEO emails <span className="font-medium">gggiddings@yahoo.com</span> and <span className="font-medium">stotteyman@gmail.com</span> are always elevated to <strong>superadmin</strong> on the server.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

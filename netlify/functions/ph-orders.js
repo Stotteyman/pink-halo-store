@@ -16,10 +16,13 @@ const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_A
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 const SCHEMA        = process.env.SUPABASE_SCHEMA || process.env.PH_SCHEMA || process.env.VITE_SUPABASE_SCHEMA || 'public';
 
-function supabase() {
+// Acts as the signed-in user (RLS via pinkhalo.jwt_role_level) unless a
+// service key is configured, which bypasses RLS on its own.
+function supabase(token) {
   return createClient(SUPABASE_URL, SUPABASE_KEY, {
     db: { schema: SCHEMA },
-    auth: { persistSession: false }
+    auth: { persistSession: false },
+    ...(token && !process.env.SUPABASE_SERVICE_KEY ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {})
   });
 }
 
@@ -32,7 +35,7 @@ export async function handler(event) {
   if (!hasRole(auth.role, 'staff')) return json(403, { error: 'Staff access required' });
   if (!SUPABASE_URL || !SUPABASE_KEY) return json(500, { error: 'Supabase not configured' });
 
-  const db = supabase();
+  const db = supabase(auth.token);
   const params = event.queryStringParameters || {};
   const path = event.path || '';
 

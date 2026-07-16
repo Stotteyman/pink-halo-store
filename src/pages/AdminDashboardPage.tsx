@@ -25,7 +25,7 @@ export default function AdminDashboardPage() {
   const stats = [
     { label: 'Products', value: productCount, link: '/admin/products' },
     { label: 'Orders', value: summary?.total_orders ?? 0, link: '/admin/orders' },
-    { label: 'Revenue', value: summary ? '$' + (summary.total_revenue / 100).toFixed(2) : '$0.00', link: '/admin/orders' },
+    { label: 'Revenue', value: summary ? '$' + summary.total_revenue.toFixed(2) : '$0.00', link: '/admin/orders' },
     { label: 'Pending orders', value: summary?.by_status?.pending ?? 0, link: '/admin/orders?status=pending' },
   ];
 

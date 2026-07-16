@@ -1,10 +1,11 @@
 // ── Storefront types ──────────────────────────────────────────────────────────
-export type Category = 'Dresses' | 'Tops' | 'Lounge' | 'Accessories' | 'Sale';
+export type Category = 'Dresses' | 'Tops' | 'Bottoms' | 'Sets' | 'Lounge' | 'Accessories' | 'Sale';
 
 export interface Product {
   id: string;
   category: Category;
   name: string;
+  slug?: string;
   description: string;
   price: number;
   compareAtPrice?: number;
@@ -12,6 +13,7 @@ export interface Product {
   imageUrl: string;
   stock: number;
   link: string;
+  tags?: string[];
   profitMargin: number;
 }
 
@@ -89,6 +91,8 @@ export interface PHUserRole {
   id: string;
   user_id: string;
   role: 'customer' | 'staff' | 'manager' | 'admin' | 'superadmin';
+  user_email?: string | null;
+  user_name?: string | null;
   created_at: string;
   updated_at: string;
 }

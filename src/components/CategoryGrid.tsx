@@ -1,33 +1,57 @@
-import { useNavigate } from 'react-router-dom';
-import { getCategories } from '../lib/products';
+import { Link, useNavigate } from 'react-router-dom';
 
-const EMOJI: Record<string, string> = {
-  Dresses: '👗',
-  Tops: '👚',
-  Lounge: '🧸',
-  Accessories: '💍',
-  Sale: '🏷️',
-};
+type Tile = { label: string; to: string; image: string };
+
+const TILES: Tile[] = [
+  { label: 'New In', to: '/new', image: '/products/pink-performance-curve-set.png' },
+  { label: 'Dresses', to: '/category/dresses', image: '/products/halo-sculpt-ruched-mini-dress.png' },
+  { label: 'Tops', to: '/category/tops', image: '/products/pretty-girls-love-pink-halo-tee.png' },
+  { label: 'Bottoms', to: '/category/bottoms', image: '/products/wild-halo-leopard-track-set.png' },
+  { label: 'Sets', to: '/category/sets', image: '/products/signature-halo-sweat-set.png' },
+  { label: 'Accessories', to: '/category/accessories', image: '/products/soft-halo-tee-short-set.png' },
+];
 
 export default function CategoryGrid() {
   const navigate = useNavigate();
-  const categories = getCategories();
 
   return (
-    <section className="py-14 px-4 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-serif font-bold text-pink-900 text-center mb-8">
-          Shop by category
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {categories.map((category) => (
+    <section className="bg-cream py-14 lg:py-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-end justify-between gap-5 mb-8 lg:mb-12">
+          <div>
+            <p className="overline text-gold mb-3">Curated for you</p>
+            <h2 className="font-serif font-medium text-ink leading-none text-[30px] md:text-5xl">
+              Shop by <em className="italic text-rose">collection</em>
+            </h2>
+          </div>
+          <Link to="/shop" className="link-more text-ink">
+            View all
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
+          {TILES.map((tile) => (
             <button
-              key={category}
-              onClick={() => navigate(`/category/${category.toLowerCase()}`)}
-              className="rounded-3xl border border-pink-100 bg-pink-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-lg"
+              key={tile.label}
+              onClick={() => navigate(tile.to)}
+              className="group relative overflow-hidden bg-shell text-left"
+              style={{ aspectRatio: '3/4.1' }}
             >
-              <div className="text-3xl mb-3">{EMOJI[category] ?? '✨'}</div>
-              <p className="font-semibold text-pink-900">{category}</p>
+              <img
+                src={tile.image}
+                alt={tile.label}
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-105"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(180deg, transparent 55%, rgba(48,22,29,0.55))' }}
+              />
+              <span className="absolute left-4 right-4 bottom-3.5 z-[2] flex items-center justify-between text-white">
+                <span className="font-serif text-lg">{tile.label}</span>
+                <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+              </span>
             </button>
           ))}
         </div>

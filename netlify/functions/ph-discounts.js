@@ -17,10 +17,13 @@ const DISCOUNTS_TABLE = process.env.PH_DISCOUNTS_TABLE || 'discounts';
 
 const ALLOWED_KINDS = ['sitewide', 'category', 'product'];
 
-function supabase() {
+// Acts as the signed-in user (RLS via pinkhalo.jwt_role_level) unless a
+// service key is configured, which bypasses RLS on its own.
+function supabase(token) {
   return createClient(SUPABASE_URL, SUPABASE_KEY, {
     db: { schema: SCHEMA },
-    auth: { persistSession: false }
+    auth: { persistSession: false },
+    ...(token && !process.env.SUPABASE_SERVICE_KEY ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {})
   });
 }
 
@@ -38,8 +41,8 @@ export async function handler(event) {
     return json(500, { error: 'Supabase not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.' });
   }
 
-  const db = supabase();
   const auth = await getAuthContext(event);
+  const db = supabase(auth.token);
   const canManage = hasRole(auth.role, 'staff');
 
   // ─── GET ────────────────────────────────────────────────────

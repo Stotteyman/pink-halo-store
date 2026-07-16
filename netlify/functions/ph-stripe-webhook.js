@@ -10,6 +10,7 @@
  */
 
 import Stripe from 'stripe';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const STRIPE_SECRET         = process.env.STRIPE_SECRET_KEY;
@@ -111,11 +112,12 @@ export async function handler(event) {
       return { statusCode: 200, body: 'ok' };
     }
 
-    const { data: newOrder, error: orderError } = await db
+    // Generate the id here: the anon role may insert orders but cannot read
+    // them back (column grants protect customer PII), so no .select() allowed.
+    const newOrder = { id: randomUUID(), ...order };
+    const { error: orderError } = await db
       .from('orders')
-      .insert(order)
-      .select()
-      .single();
+      .insert(newOrder);
 
     if (orderError) {
       console.error('Failed to insert order:', orderError.message);

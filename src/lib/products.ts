@@ -19,5 +19,8 @@ export function saveProducts(products: Product[]) {
 }
 
 export function getCategories(): Category[] {
-  return ['Dresses', 'Tops', 'Lounge', 'Accessories', 'Sale'];
+  return ['Dresses', 'Tops', 'Bottoms', 'Sets', 'Accessories', 'Sale'];
 }
+
+// Sub-categories grouped under the "Clothing" nav dropdown.
+export const CLOTHING_CATEGORIES: Category[] = ['Dresses', 'Tops', 'Bottoms', 'Sets'];

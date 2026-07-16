@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {session?.user?.email && (
               <p className="hidden md:block text-xs text-gray-500 max-w-[240px] truncate" title={session.user.email}>
-                {session.user.email}
+                {session.user.user_metadata?.full_name || session.user.email}
               </p>
             )}
             <Link to="/" className="text-xs text-gray-600 hover:text-gray-900">Back to store</Link>

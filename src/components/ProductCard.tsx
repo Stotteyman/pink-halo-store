@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import type { Product } from '../lib/types';
+import { toggleWishlist, useWishlist } from '../lib/wishlist';
 
 type Props = {
   product: Product;
@@ -17,32 +17,33 @@ function slugify(text: string) {
     .replace(/(^-|-$)/g, '');
 }
 
-export default function ProductCard({ product, onAdd, formatCurrency, productMask }: Props) {
+const placeholderImage =
+  'data:image/svg+xml;charset=UTF-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="100%" height="100%" fill="%23F0E3DC"/><text x="50%" y="50%" fill="%23B4707E" font-family="Georgia,serif" font-size="26" dominant-baseline="middle" text-anchor="middle">Pink Halo Co.</text></svg>'
+  );
+
+export default function ProductCard({ product, onAdd, formatCurrency }: Props) {
   const navigate = useNavigate();
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const productPath = `/${product.category.toLowerCase()}/${slugify(product.name)}`;
-  const placeholderImage =
-    'data:image/svg+xml;charset=UTF-8,' +
-    encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="100%" height="100%" fill="%23FBE6EE"/><text x="50%" y="50%" fill="%23DD5A8A" font-family="Inter,sans-serif" font-size="28" dominant-baseline="middle" text-anchor="middle">Image unavailable</text></svg>`
-    );
+  const wishlist = useWishlist();
+  const isWishlisted = wishlist.includes(product.id);
+  const productPath = product.link || `/${product.category.toLowerCase()}/${slugify(product.name)}`;
+  const soldOut = product.stock === 0 && !product.preorder;
 
   return (
     <motion.article
-      className="bg-white/95 border border-pink-100 rounded-[2rem] overflow-hidden flex flex-col h-full cursor-pointer group relative text-pink-900 shadow-[0_30px_90px_rgba(255,135,183,0.16)]"
-      initial={{ opacity: 0, y: 16 }}
+      className="group cursor-pointer"
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      whileHover={{ y: -10, transition: { duration: 0.3 } }}
+      transition={{ duration: 0.4 }}
       onClick={() => navigate(productPath)}
     >
-      <div className="aspect-square bg-pink-50 flex items-center justify-center relative overflow-hidden flex-shrink-0 border-b border-pink-100">
-        <motion.img
-          src={product.imageUrl}
+      <div className="relative overflow-hidden bg-shell" style={{ aspectRatio: '3/4' }}>
+        <img
+          src={product.imageUrl || placeholderImage}
           alt={product.name}
-          className="w-full h-full object-cover"
-          whileHover={{ scale: 1.06 }}
-          transition={{ duration: 0.35 }}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-105"
           onError={(event) => {
             const target = event.currentTarget as HTMLImageElement;
             target.onerror = null;
@@ -50,62 +51,52 @@ export default function ProductCard({ product, onAdd, formatCurrency, productMas
           }}
         />
 
-        <motion.div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100"
-          style={{
-            background:
-              'radial-gradient(circle at 20% 30%, rgba(255, 217, 232, 0.35), transparent 35%), radial-gradient(circle at 80% 70%, rgba(244, 194, 122, 0.22), transparent 35%)',
-          }}
-          transition={{ duration: 0.3 }}
-        />
+        {/* Status tag */}
+        {product.preorder ? (
+          <span className="absolute top-3 left-3 bg-rose text-white text-[9px] font-bold uppercase tracking-[0.18em] px-2.5 py-1.5">Preorder</span>
+        ) : product.stock === 0 ? (
+          <span className="absolute top-3 left-3 bg-ink/85 text-white text-[9px] font-bold uppercase tracking-[0.18em] px-2.5 py-1.5">Sold Out</span>
+        ) : product.compareAtPrice != null ? (
+          <span className="absolute top-3 left-3 bg-rose text-white text-[9px] font-bold uppercase tracking-[0.18em] px-2.5 py-1.5">Sale</span>
+        ) : (product.tags || []).includes('new') ? (
+          <span className="absolute top-3 left-3 bg-white text-ink text-[9px] font-bold uppercase tracking-[0.18em] px-2.5 py-1.5">New</span>
+        ) : null}
 
-        <div className="absolute inset-x-0 top-4 flex justify-between px-4">
-          {product.preorder ? (
-            <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-white px-3 py-1 text-[0.65rem] font-semibold uppercase shadow-lg">Coming Soon</span>
-          ) : product.stock === 0 ? (
-            <span className="rounded-full bg-pink-100/90 px-3 py-1 text-[0.65rem] font-semibold uppercase text-pink-700 shadow-sm">Sold Out</span>
-          ) : product.stock < 5 ? (
-            <span className="rounded-full bg-gradient-to-r from-pink-500 to-pink-600 text-white px-3 py-1 text-[0.65rem] font-semibold uppercase shadow-lg">Low Stock</span>
-          ) : null}
-          <motion.button
-            onClick={(event) => {
-              event.stopPropagation();
-              setIsWishlisted(!isWishlisted);
-            }}
-            className="rounded-full bg-white/90 p-2 text-pink-600 shadow-sm hover:bg-white"
-            whileHover={{ scale: 1.12 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <svg className="w-5 h-5" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </motion.button>
-        </div>
+        {/* Wishlist */}
+        <button
+          aria-label="Add to wishlist"
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleWishlist(product.id);
+          }}
+          className={`absolute top-2.5 right-2.5 grid place-items-center w-9 h-9 rounded-full bg-white/90 shadow-sm text-rose transition-opacity hover:bg-white ${isWishlisted ? '' : 'sm:opacity-0 sm:group-hover:opacity-100'}`}
+        >
+          <svg className="w-4 h-4" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </button>
+
+        {/* Quick add — slides up on hover (always visible on touch) */}
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onAdd(product);
+          }}
+          disabled={soldOut}
+          className="absolute inset-x-0 bottom-0 bg-rosewood-dark/90 text-white py-3.5 text-[10px] font-semibold uppercase tracking-[0.24em] transition-transform duration-300 sm:translate-y-full sm:group-hover:translate-y-0 disabled:cursor-not-allowed"
+        >
+          {product.preorder ? 'Preorder' : soldOut ? 'Sold Out' : `Add to bag — ${formatCurrency(product.price)}`}
+        </button>
       </div>
 
-      <div className="p-5 flex flex-col gap-3 flex-1">
-        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.26em] text-pink-500">{product.category}</span>
-        <h3 className="text-base font-semibold text-pink-900 line-clamp-2">{product.name}</h3>
-        <p className="text-sm text-pink-600 flex-1 line-clamp-2">{productMask(product.description)}</p>
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-pink-100 pt-4">
-          <span className="flex items-baseline gap-2">
-            {product.compareAtPrice != null && (
-              <span className="text-sm text-pink-400 line-through">{formatCurrency(product.compareAtPrice)}</span>
-            )}
-            <span className="text-lg font-semibold text-pink-800">{formatCurrency(product.price)}</span>
-          </span>
-          <motion.button
-            onClick={(event) => {
-              event.stopPropagation();
-              onAdd(product);
-            }}
-            className="rounded-full bg-gradient-to-r from-pink-500 to-amber-300 px-4 py-2 text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={product.stock > 0 || product.preorder ? { scale: 1.05 } : {}}
-            whileTap={product.stock > 0 || product.preorder ? { scale: 0.95 } : {}}
-            disabled={product.stock === 0 && !product.preorder}
-          >
-            {product.preorder ? 'Preorder' : product.stock > 0 ? 'Add' : 'Sold Out'}
-          </motion.button>
+      <div className="pt-3.5 flex flex-col gap-1">
+        <span className="text-[9px] font-semibold uppercase tracking-[0.26em] text-gold">{product.category}</span>
+        <h3 className="font-serif text-base text-ink leading-snug line-clamp-1">{product.name}</h3>
+        <div className="flex items-baseline gap-2 text-[13px] font-semibold text-ink">
+          {product.compareAtPrice != null && (
+            <s className="text-ink-soft/70 font-normal">{formatCurrency(product.compareAtPrice)}</s>
+          )}
+          <span>{formatCurrency(product.price)}</span>
         </div>
       </div>
     </motion.article>

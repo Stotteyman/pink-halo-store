@@ -25,6 +25,21 @@ export function getSupabaseServiceClient() {
   });
 }
 
+// Client that acts as the signed-in user: anon key + the caller's JWT, so RLS
+// policies (pinkhalo.jwt_role_level) decide table access. With a service key
+// configured, RLS is bypassed and the token is unnecessary.
+export function getSupabaseUserClient(token) {
+  if (SUPABASE_SERVICE_KEY) return getSupabaseServiceClient();
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase is not configured.');
+  }
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    db: { schema: SCHEMA },
+    auth: { persistSession: false },
+    ...(token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {}),
+  });
+}
+
 const CEO_EMAILS = new Set([
   'gggiddings@yahoo.com',
   'stotteyman@gmail.com',
@@ -58,8 +73,9 @@ export async function getAuthContext(event) {
   let role = normalizeRole(user.app_metadata?.role || user.user_metadata?.role || 'customer');
 
   // Optional role override from pinkhalo.user_roles table.
+  // Read as the user: RLS lets everyone read their own role row.
   try {
-    const { data: roleRows } = await db
+    const { data: roleRows } = await getSupabaseUserClient(token)
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)

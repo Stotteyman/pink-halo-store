@@ -1,4 +1,4 @@
-import { getAuthContext, getSupabaseServiceClient, hasRole, json } from './_auth.js';
+import { getAuthContext, getSupabaseUserClient, hasRole, json } from './_auth.js';
 
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') {
@@ -10,7 +10,7 @@ export async function handler(event) {
     return json(401, { error: 'Authentication required' });
   }
 
-  const db = getSupabaseServiceClient();
+  const db = getSupabaseUserClient(auth.token);
 
   if (event.httpMethod === 'GET') {
     // Staff can view role list; customers can only view self role.
@@ -21,7 +21,19 @@ export async function handler(event) {
         .order('updated_at', { ascending: false })
         .limit(500);
       if (error) return json(500, { error: error.message });
-      return json(200, { roles: data || [], current_role: auth.role });
+
+      // Attach names/emails from the staff-gated auth directory
+      let directory = new Map();
+      try {
+        const { data: users } = await db.rpc('user_directory');
+        directory = new Map((users || []).map(u => [u.user_id, u]));
+      } catch { /* directory unavailable; show ids only */ }
+      const roles = (data || []).map(row => ({
+        ...row,
+        user_email: directory.get(row.user_id)?.email || null,
+        user_name: directory.get(row.user_id)?.display_name || null,
+      }));
+      return json(200, { roles, current_role: auth.role });
     }
 
     const { data, error } = await db
