@@ -1,8 +1,16 @@
 import nodemailer from 'nodemailer';
+import { getAuthContext, hasRole } from './_auth.js';
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Only POST requests are supported.' }) };
+  }
+
+  // Staff only — with live SMTP credentials an open endpoint would let
+  // anyone send mail as the store's domain.
+  const auth = await getAuthContext(event);
+  if (!hasRole(auth.role, 'staff')) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'Staff access required' }) };
   }
 
   let body;
