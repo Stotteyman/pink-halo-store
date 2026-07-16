@@ -1,18 +1,52 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchCategories, fetchSettings } from '../lib/supabase';
 
 type Tile = { label: string; to: string; image: string };
 
-const TILES: Tile[] = [
-  { label: 'New In', to: '/new', image: '/products/pink-performance-curve-set.png' },
-  { label: 'Dresses', to: '/category/dresses', image: '/products/halo-sculpt-ruched-mini-dress.png' },
-  { label: 'Tops', to: '/category/tops', image: '/products/pretty-girls-love-pink-halo-tee.png' },
-  { label: 'Bottoms', to: '/category/bottoms', image: '/products/wild-halo-leopard-track-set.png' },
-  { label: 'Sets', to: '/category/sets', image: '/products/signature-halo-sweat-set.png' },
-  { label: 'Accessories', to: '/category/accessories', image: '/products/soft-halo-tee-short-set.png' },
+// Fallbacks when a category has no photo set in Admin → Categories
+const DEFAULT_IMAGES: Record<string, string> = {
+  'new in': '/products/pink-performance-curve-set.png',
+  dresses: '/products/halo-sculpt-ruched-mini-dress.png',
+  tops: '/products/pretty-girls-love-pink-halo-tee.png',
+  bottoms: '/products/wild-halo-leopard-track-set.png',
+  sets: '/products/signature-halo-sweat-set.png',
+  lounge: '/products/signature-halo-sweat-set.png',
+  accessories: '/products/soft-halo-tee-short-set.png',
+};
+
+const FALLBACK_TILES: Tile[] = [
+  { label: 'New In', to: '/new', image: DEFAULT_IMAGES['new in'] },
+  { label: 'Dresses', to: '/category/dresses', image: DEFAULT_IMAGES.dresses },
+  { label: 'Tops', to: '/category/tops', image: DEFAULT_IMAGES.tops },
+  { label: 'Bottoms', to: '/category/bottoms', image: DEFAULT_IMAGES.bottoms },
+  { label: 'Sets', to: '/category/sets', image: DEFAULT_IMAGES.sets },
+  { label: 'Accessories', to: '/category/accessories', image: DEFAULT_IMAGES.accessories },
 ];
 
 export default function CategoryGrid() {
   const navigate = useNavigate();
+  const [tiles, setTiles] = useState<Tile[]>(FALLBACK_TILES);
+
+  useEffect(() => {
+    Promise.all([fetchCategories(), fetchSettings(['home_new_in_image'])])
+      .then(([catData, settingsData]) => {
+        const categories = (catData.categories || []).filter(c => c.name.toLowerCase() !== 'sale');
+        if (categories.length === 0) return;
+        const newInImage = typeof settingsData.settings?.home_new_in_image === 'string' && settingsData.settings.home_new_in_image
+          ? String(settingsData.settings.home_new_in_image)
+          : DEFAULT_IMAGES['new in'];
+        setTiles([
+          { label: 'New In', to: '/new', image: newInImage },
+          ...categories.map(category => ({
+            label: category.name,
+            to: `/category/${category.slug}`,
+            image: category.image_url || DEFAULT_IMAGES[category.name.toLowerCase()] || DEFAULT_IMAGES['new in'],
+          })),
+        ]);
+      })
+      .catch(() => undefined); // keep fallback tiles
+  }, []);
 
   return (
     <section className="bg-cream py-14 lg:py-24">
@@ -30,7 +64,7 @@ export default function CategoryGrid() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
-          {TILES.map((tile) => (
+          {tiles.map((tile) => (
             <button
               key={tile.label}
               onClick={() => navigate(tile.to)}

@@ -2,18 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchManufacturers, fetchProduct, updateProduct, uploadProductImage } from '../lib/supabase';
 import type { PHManufacturer, ProductStatus } from '../lib/types';
+import AdminVariantSection, { type DraftVariant } from '../components/AdminVariantSection';
 
 const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Sets', 'Lounge', 'Accessories', 'Sale'];
-
-interface DraftVariant {
-  id?: string;
-  name: string;
-  color: string;
-  size: string;
-  sku: string;
-  price: string;
-  stock: string;
-}
 
 export default function AdminEditProductPage() {
   const navigate = useNavigate();
@@ -46,6 +37,8 @@ export default function AdminEditProductPage() {
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState<ProductStatus>('draft');
   const [variants, setVariants] = useState<DraftVariant[]>([]);
+  const [targetMargin, setTargetMargin] = useState('');
+  const [targetProfit, setTargetProfit] = useState('');
 
   const priceValue = parseFloat(price || '0') || 0;
   const costValue = parseFloat(cost || '0') || 0;
@@ -77,6 +70,7 @@ export default function AdminEditProductPage() {
             id: variant.id,
             name: variant.name || '',
             color: variant.options?.color || '',
+            hex: variant.options?.hex || undefined,
             size: variant.options?.size || '',
             sku: variant.sku || '',
             price: variant.price != null ? Number(variant.price).toFixed(2) : '',
@@ -117,23 +111,6 @@ export default function AdminEditProductPage() {
     setTagInput('');
   }
 
-  function addVariant() {
-    setVariants((current) => [
-      ...current,
-      { name: '', color: '', size: '', sku: '', price: '', stock: '0' },
-    ]);
-  }
-
-  function updateVariant(index: number, key: keyof DraftVariant, value: string) {
-    setVariants((current) =>
-      current.map((variant, i) => (i === index ? { ...variant, [key]: value } : variant))
-    );
-  }
-
-  function removeVariant(index: number) {
-    setVariants((current) => current.filter((_, i) => i !== index));
-  }
-
   async function handleSave() {
     if (!id || !name.trim() || !price) { setSaveError('Name and price are required.'); return; }
     if (!category) { setSaveError('Choose a category — it decides which room the product shows up in.'); return; }
@@ -157,6 +134,7 @@ export default function AdminEditProductPage() {
             options: {
               ...(cleanColor ? { color: cleanColor } : {}),
               ...(cleanSize ? { size: cleanSize } : {}),
+              ...(variant.hex ? { hex: variant.hex } : {}),
             },
           };
         });
@@ -249,6 +227,28 @@ export default function AdminEditProductPage() {
           </div>
         </div>
 
+        {/* Price balancing: derive the sale price from cost */}
+        {costValue > 0 && (
+          <div className="bg-pink-50/60 border border-pink-200 rounded-lg p-3">
+            <p className="text-xs font-semibold text-gray-700 mb-2">
+              Price from cost <span className="font-normal text-gray-500">— current margin: {priceValue > 0 ? `${margin.toFixed(1)}% ($${(priceValue - costValue).toFixed(2)}/unit)` : '—'}</span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input className="border rounded-lg px-2.5 py-1.5 text-xs w-28" type="number" step="1" min="1" max="95" placeholder="Margin %" value={targetMargin} onChange={e => setTargetMargin(e.target.value)} />
+              <button type="button" className="border border-pink-300 text-pink-700 px-3 py-1.5 rounded-lg text-xs hover:bg-pink-100"
+                onClick={() => { const m = parseFloat(targetMargin); if (m > 0 && m < 100) setPrice((costValue / (1 - m / 100)).toFixed(2)); }}>
+                Set price for margin %
+              </button>
+              <span className="text-xs text-gray-400">or</span>
+              <input className="border rounded-lg px-2.5 py-1.5 text-xs w-28" type="number" step="0.01" min="0" placeholder="Profit $/unit" value={targetProfit} onChange={e => setTargetProfit(e.target.value)} />
+              <button type="button" className="border border-pink-300 text-pink-700 px-3 py-1.5 rounded-lg text-xs hover:bg-pink-100"
+                onClick={() => { const p = parseFloat(targetProfit); if (p >= 0) setPrice((costValue + p).toFixed(2)); }}>
+                Set price for profit $
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Stock</label>
@@ -337,34 +337,7 @@ export default function AdminEditProductPage() {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-semibold text-gray-600">Variants (colors, sizes, per-item stock/price)</label>
-            <button onClick={addVariant} className="border px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50">+ Add variant</button>
-          </div>
-
-          {variants.length === 0 ? (
-            <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-              No variants yet. Add variants to manage color, size, SKU, pricing, and stock per item.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {variants.map((variant, index) => (
-                <div key={variant.id || index} className="grid grid-cols-1 md:grid-cols-7 gap-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
-                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Variant name" value={variant.name} onChange={(e) => updateVariant(index, 'name', e.target.value)} />
-                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Color" value={variant.color} onChange={(e) => updateVariant(index, 'color', e.target.value)} />
-                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="Size" value={variant.size} onChange={(e) => updateVariant(index, 'size', e.target.value)} />
-                  <input className="border rounded px-2 py-1.5 text-xs" placeholder="SKU" value={variant.sku} onChange={(e) => updateVariant(index, 'sku', e.target.value)} />
-                  <input className="border rounded px-2 py-1.5 text-xs" type="number" step="0.01" placeholder="Price $" value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} />
-                  <input className="border rounded px-2 py-1.5 text-xs" type="number" placeholder="Stock" value={variant.stock} onChange={(e) => updateVariant(index, 'stock', e.target.value)} />
-                  <button onClick={() => removeVariant(index)} className="text-xs text-red-500 hover:text-red-700 border border-red-200 bg-white rounded px-2 py-1.5">
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <AdminVariantSection variants={variants} onChange={setVariants} defaultStock={stock} />
 
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
           <p className="font-semibold text-gray-700 mb-1">Quick summary</p>

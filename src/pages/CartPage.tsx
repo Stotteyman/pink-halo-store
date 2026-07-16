@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Product } from '../lib/types';
 import { formatCurrency } from '../lib/utils';
+import { parseCartKey, variantLabel } from '../lib/variants';
 
 interface CartPageProps {
   cart: Record<string, number>;
@@ -11,27 +12,31 @@ interface CartPageProps {
 
 export default function CartPage({ cart, setCart, products, onCheckout }: CartPageProps) {
   const cartItems = Object.entries(cart)
-    .map(([productId, quantity]) => ({
-      product: products.find(p => p.id === productId),
-      quantity
-    }))
-    .filter(item => item.product);
+    .map(([key, quantity]) => {
+      const { productId, variantId } = parseCartKey(key);
+      const product = products.find(p => p.id === productId);
+      const variant = variantId ? (product?.variants || []).find(v => v.id === variantId) : undefined;
+      if (!product || (variantId && !variant)) return null;
+      const unitPrice = variant?.price != null ? variant.price : product.price;
+      return { key, product, variant, unitPrice, quantity };
+    })
+    .filter(Boolean) as { key: string; product: Product; variant?: NonNullable<Product['variants']>[number]; unitPrice: number; quantity: number }[];
 
-  const total = cartItems.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
+  const total = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
-  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
+  const handleUpdateQuantity = (key: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       const newCart = { ...cart };
-      delete newCart[productId];
+      delete newCart[key];
       setCart(newCart);
     } else {
-      setCart({ ...cart, [productId]: newQuantity });
+      setCart({ ...cart, [key]: newQuantity });
     }
   };
 
-  const handleRemove = (productId: string) => {
+  const handleRemove = (key: string) => {
     const newCart = { ...cart };
-    delete newCart[productId];
+    delete newCart[key];
     setCart(newCart);
   };
 
@@ -44,8 +49,8 @@ export default function CartPage({ cart, setCart, products, onCheckout }: CartPa
         {cartItems.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-3">
-              {cartItems.map(item => item.product && (
-                <div key={item.product.id} className="bg-white border border-hairline p-4 flex gap-4">
+              {cartItems.map(item => (
+                <div key={item.key} className="bg-white border border-hairline p-4 flex gap-4">
                   <img
                     src={item.product.imageUrl}
                     alt={item.product.name}
@@ -54,10 +59,11 @@ export default function CartPage({ cart, setCart, products, onCheckout }: CartPa
                   <div className="flex-1 min-w-0">
                     <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-gold">{item.product.category}</p>
                     <h3 className="font-serif text-lg text-ink leading-snug mt-0.5">{item.product.name}</h3>
-                    <p className="text-[13px] font-semibold text-ink mt-1">{formatCurrency(item.product.price)}</p>
+                    {item.variant && <p className="text-xs text-ink-soft mt-0.5">{variantLabel(item.variant)}</p>}
+                    <p className="text-[13px] font-semibold text-ink mt-1">{formatCurrency(item.unitPrice)}</p>
                     <div className="flex items-center gap-2 mt-3">
                       <button
-                        onClick={() => handleUpdateQuantity(item.product!.id, item.quantity - 1)}
+                        onClick={() => handleUpdateQuantity(item.key, item.quantity - 1)}
                         aria-label="Decrease quantity"
                         className="w-8 h-8 border border-hairline hover:border-rose text-ink transition-colors"
                       >
@@ -65,14 +71,14 @@ export default function CartPage({ cart, setCart, products, onCheckout }: CartPa
                       </button>
                       <span className="w-8 text-center text-sm text-ink">{item.quantity}</span>
                       <button
-                        onClick={() => handleUpdateQuantity(item.product!.id, item.quantity + 1)}
+                        onClick={() => handleUpdateQuantity(item.key, item.quantity + 1)}
                         aria-label="Increase quantity"
                         className="w-8 h-8 border border-hairline hover:border-rose text-ink transition-colors"
                       >
                         +
                       </button>
                       <button
-                        onClick={() => handleRemove(item.product!.id)}
+                        onClick={() => handleRemove(item.key)}
                         className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft hover:text-rose transition-colors"
                       >
                         Remove
@@ -81,7 +87,7 @@ export default function CartPage({ cart, setCart, products, onCheckout }: CartPa
                   </div>
                   <div className="text-right hidden sm:block">
                     <p className="font-serif font-medium text-lg text-ink">
-                      {formatCurrency(item.product.price * item.quantity)}
+                      {formatCurrency(item.unitPrice * item.quantity)}
                     </p>
                   </div>
                 </div>

@@ -76,16 +76,20 @@ export default function ProductCard({ product, onAdd, formatCurrency }: Props) {
           </svg>
         </button>
 
-        {/* Quick add — slides up on hover (always visible on touch) */}
+        {/* Quick add — slides up on hover (always visible on touch).
+            Products with variants route to the detail page to pick options. */}
         <button
           onClick={(event) => {
             event.stopPropagation();
-            onAdd(product);
+            if ((product.variants || []).length > 0) navigate(productPath);
+            else onAdd(product);
           }}
           disabled={soldOut}
           className="absolute inset-x-0 bottom-0 bg-rosewood-dark/90 text-white py-3.5 text-[10px] font-semibold uppercase tracking-[0.24em] transition-transform duration-300 sm:translate-y-full sm:group-hover:translate-y-0 disabled:cursor-not-allowed"
         >
-          {product.preorder ? 'Preorder' : soldOut ? 'Sold Out' : `Add to bag — ${formatCurrency(product.price)}`}
+          {(product.variants || []).length > 0
+            ? `Choose options — ${formatCurrency(product.price)}`
+            : product.preorder ? 'Preorder' : soldOut ? 'Sold Out' : `Add to bag — ${formatCurrency(product.price)}`}
         </button>
       </div>
 

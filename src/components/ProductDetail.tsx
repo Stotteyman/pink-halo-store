@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Product } from '../lib/types';
 import NotFound from './NotFound';
 import { toggleWishlist, useWishlist } from '../lib/wishlist';
+import { colorHex, type StorefrontVariant } from '../lib/variants';
 
 type Props = {
   products: Product[];
-  onAdd: (product: Product, quantity: number, openDrawer?: boolean) => void;
+  onAdd: (product: Product, quantity: number, openDrawer?: boolean, variant?: StorefrontVariant) => void;
   setCartOpen: (open: boolean) => void;
   formatCurrency: (value: number) => string;
 };
@@ -14,13 +15,6 @@ type Props = {
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
-
-const COLORS = [
-  { name: 'Rose', hex: '#D8A7B1' },
-  { name: 'Cream', hex: '#F3EAE0' },
-  { name: 'Black', hex: '#2B2226' },
-];
-const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 
 const placeholder =
   'data:image/svg+xml;charset=UTF-8,' +
@@ -44,13 +38,51 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
   const navigate = useNavigate();
   const categoryParam = params.category?.toLowerCase() ?? '';
   const slug = params.slug ?? '';
-  const [color, setColor] = useState('Rose');
-  const [size, setSize] = useState('M');
+  const [color, setColor] = useState<string | null>(null);
+  const [size, setSize] = useState<string | null>(null);
   const wishlist = useWishlist();
 
   const product = products.find(
     (item) => item.category.toLowerCase() === categoryParam && (item.slug === slug || slugify(item.name) === slug)
   );
+
+  const variants = product?.variants || [];
+  const hasVariants = variants.length > 0;
+
+  // Distinct colors/sizes actually offered on this product
+  const colors = useMemo(() => {
+    const seen = new Map<string, { name: string; hex: string }>();
+    for (const v of variants) {
+      if (v.color && !seen.has(v.color.toLowerCase())) {
+        seen.set(v.color.toLowerCase(), { name: v.color, hex: v.hex || colorHex(v.color) || '#D8A7B1' });
+      }
+    }
+    return [...seen.values()];
+  }, [variants]);
+
+  const sizes = useMemo(() => {
+    const seen: string[] = [];
+    for (const v of variants) {
+      if (v.size && !seen.includes(v.size)) seen.push(v.size);
+    }
+    return seen;
+  }, [variants]);
+
+  const variantFor = (c: string | null, s: string | null) =>
+    variants.find((v) => (colors.length === 0 || v.color === c || !v.color) && (sizes.length === 0 || v.size === s || !v.size));
+
+  const isAvailable = (v?: StorefrontVariant) => !!v && (v.stock > 0 || Boolean(product?.preorder));
+
+  // Default to the first in-stock combination
+  useEffect(() => {
+    if (!hasVariants) return;
+    const firstAvailable = variants.find((v) => isAvailable(v)) || variants[0];
+    setColor(firstAvailable?.color ?? null);
+    setSize(firstAvailable?.size ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
+  const selectedVariant = hasVariants ? variantFor(color, size) : undefined;
 
   const alsoLike = useMemo(() => {
     if (!product) return [];
@@ -62,11 +94,26 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
   if (!product) return <NotFound />;
 
   const wished = wishlist.includes(product.id);
-  const soldOut = product.stock <= 0 && !product.preorder;
-  const afterpay = product.price / 4;
+  const displayPrice = selectedVariant?.price != null ? selectedVariant.price : product.price;
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : product.stock;
+  const selectionMissing = hasVariants && !selectedVariant;
+  const soldOut = (effectiveStock <= 0 && !product.preorder) || selectionMissing;
+  const afterpay = displayPrice / 4;
+
+  function pickColor(next: string) {
+    setColor(next);
+    // Keep the size valid for the new color
+    if (sizes.length > 0) {
+      const stillValid = variants.some((v) => v.color === next && v.size === size && isAvailable(v));
+      if (!stillValid) {
+        const fallback = variants.find((v) => v.color === next && isAvailable(v)) || variants.find((v) => v.color === next);
+        setSize(fallback?.size ?? null);
+      }
+    }
+  }
 
   function buyNow() {
-    onAdd(product!, 1, false);
+    onAdd(product!, 1, false, selectedVariant);
     navigate('/cart');
   }
 
@@ -97,55 +144,65 @@ export default function ProductDetail({ products, onAdd, setCartOpen, formatCurr
           <p className="overline text-gold mb-3">{product.category}</p>
           <h1 className="font-serif font-medium text-ink text-4xl md:text-[44px] leading-[1.05]">{product.name}</h1>
           <div className="flex items-baseline gap-3 mt-4">
-            {product.compareAtPrice != null && <s className="text-lg text-ink-soft/70 font-normal">{formatCurrency(product.compareAtPrice)}</s>}
-            <span className="text-2xl font-semibold text-ink">{formatCurrency(product.price)}</span>
+            {product.compareAtPrice != null && selectedVariant?.price == null && <s className="text-lg text-ink-soft/70 font-normal">{formatCurrency(product.compareAtPrice)}</s>}
+            <span className="text-2xl font-semibold text-ink">{formatCurrency(displayPrice)}</span>
           </div>
           <p className="text-sm text-ink-soft mt-2">
             or 4 interest-free payments of {formatCurrency(afterpay)} <span className="text-rose font-semibold">available at checkout</span>
           </p>
 
-          {/* Color */}
-          <div className="mt-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink mb-3">
-              Color <span className="text-ink-soft font-normal normal-case tracking-normal">— {color}</span>
-            </p>
-            <div className="flex gap-2.5">
-              {COLORS.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => setColor(c.name)}
-                  aria-label={c.name}
-                  className={`w-9 h-9 rounded-full border-2 p-0.5 transition-colors ${color === c.name ? 'border-rose' : 'border-hairline hover:border-ink-soft'}`}
-                >
-                  <span className="block w-full h-full rounded-full" style={{ backgroundColor: c.hex }} />
-                </button>
-              ))}
+          {/* Color — only the colors this product actually comes in */}
+          {colors.length > 0 && (
+            <div className="mt-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink mb-3">
+                Color <span className="text-ink-soft font-normal normal-case tracking-normal">— {color || 'select'}</span>
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {colors.map((c) => (
+                  <button
+                    key={c.name}
+                    onClick={() => pickColor(c.name)}
+                    aria-label={c.name}
+                    title={c.name}
+                    className={`w-9 h-9 rounded-full border-2 p-0.5 transition-colors ${color === c.name ? 'border-rose' : 'border-hairline hover:border-ink-soft'}`}
+                  >
+                    <span className="block w-full h-full rounded-full border border-black/10" style={{ backgroundColor: c.hex }} />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Size */}
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink">Size</p>
-              <Link to="/help/size-guide" className="text-xs text-ink-soft underline underline-offset-4 hover:text-rose transition-colors">Size Guide</Link>
+          {/* Size — greyed out when the combo is out of stock */}
+          {sizes.length > 0 && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink">Size</p>
+                <Link to="/help/size-guide" className="text-xs text-ink-soft underline underline-offset-4 hover:text-rose transition-colors">Size Guide</Link>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sizes.map((s) => {
+                  const combo = variants.find((v) => (colors.length === 0 || v.color === color) && v.size === s);
+                  const unavailable = !isAvailable(combo);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => !unavailable && setSize(s)}
+                      disabled={unavailable}
+                      className={`min-w-[48px] py-2.5 border text-[13px] font-semibold transition-colors ${size === s ? 'bg-ink text-cream border-ink' : unavailable ? 'bg-white text-ink-soft/40 border-hairline line-through cursor-not-allowed' : 'bg-white text-ink border-hairline hover:border-ink'}`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {SIZES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className={`min-w-[48px] py-2.5 border text-[13px] font-semibold transition-colors ${size === s ? 'bg-ink text-cream border-ink' : 'bg-white text-ink border-hairline hover:border-ink'}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* CTAs */}
           <div className="mt-9 space-y-3">
-            <button onClick={() => { onAdd(product, 1, true); setCartOpen(true); }} disabled={soldOut} className="btn-primary w-full">
-              {product.preorder ? 'Preorder' : soldOut ? 'Sold Out' : 'Add to Bag'}
+            <button onClick={() => { onAdd(product, 1, true, selectedVariant); setCartOpen(true); }} disabled={soldOut} className="btn-primary w-full">
+              {selectionMissing ? 'Select options' : product.preorder ? 'Preorder' : soldOut ? 'Sold Out' : 'Add to Bag'}
             </button>
             <button onClick={buyNow} disabled={soldOut} className="btn-ghost w-full">
               Buy Now

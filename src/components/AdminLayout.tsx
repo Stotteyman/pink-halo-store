@@ -6,9 +6,14 @@ import { signOutSupabase } from '../lib/supabase';
 const NAV_ITEMS = [
   { label: 'Dashboard', to: '/admin' },
   { label: 'Products', to: '/admin/products' },
+  { label: 'Categories', to: '/admin/categories' },
   { label: 'Orders', to: '/admin/orders' },
   { label: 'Manufacturers', to: '/admin/manufacturers' },
+  { label: 'Sourcing & Pricing', to: '/admin/sourcing' },
   { label: 'Discounts', to: '/admin/discounts' },
+  { label: 'Mail', to: '/admin/mail' },
+  { label: 'Marketing', to: '/admin/marketing' },
+  { label: 'Gallery', to: '/admin/gallery' },
   { label: 'Roles', to: '/admin/roles' },
 ];
 

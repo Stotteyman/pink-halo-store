@@ -25,6 +25,7 @@ const HELP_LINKS = [
 const CLUB_LINKS = [
   { label: 'Rewards', to: '/rewards' },
   { label: 'Refer a Friend', to: '/refer' },
+  { label: 'Gallery of Supporters', to: '/gallery' },
   { label: 'Privacy Policy', to: '/help/privacy' },
   { label: 'Terms of Service', to: '/help/terms' },
 ];

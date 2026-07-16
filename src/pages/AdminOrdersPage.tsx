@@ -109,6 +109,7 @@ export default function AdminOrdersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: selected.customer_email,
+          from: 'sales',
           subject: contactSubject,
           html: `<p>${contactMessage.replace(/\n/g, '<br>')}</p><p style="color:#888;font-size:12px">Regarding order #${selected.id.slice(0, 8)}</p>`,
           text: `${contactMessage}\n\nRegarding order #${selected.id.slice(0, 8)}`,

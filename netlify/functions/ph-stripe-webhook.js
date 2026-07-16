@@ -12,6 +12,7 @@
 import Stripe from 'stripe';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { mailConfigured, sendMail } from './_mail.js';
 
 const STRIPE_SECRET         = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
@@ -85,6 +86,7 @@ export async function handler(event) {
       customer_name:            session.customer_details?.name || shipping.name || null,
       guest_session_id:         session.metadata?.guest_session_id || null,
       customer_mode:            session.metadata?.customer_mode || 'guest',
+      account_email:            session.metadata?.account_email || null,
       shipping_address: {
         name:    shipping.name,
         line1:   addr.line1,
@@ -144,6 +146,8 @@ export async function handler(event) {
         })(),
         order_id:     newOrder.id,
         product_id:   item.price?.product?.metadata?.product_id || null,
+        variant_id:   item.price?.product?.metadata?.variant_id || null,
+        variant_name: item.price?.product?.metadata?.variant_name || null,
         product_name: item.description || item.price?.product?.name || 'Product',
         price:        (item.amount_total || 0) / 100 / (item.quantity || 1),
         quantity:     item.quantity || 1,
@@ -154,6 +158,69 @@ export async function handler(event) {
     }
 
     console.log('Order saved:', newOrder.id, 'for', order.customer_email);
+
+    // Order confirmation receipt from sales@ — never let email failure
+    // break webhook acknowledgment (Stripe would retry and duplicate work).
+    if (order.customer_email && mailConfigured()) {
+      try {
+        const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+        const itemLines = lineItems.map(item =>
+          `${item.description || item.price?.product?.name || 'Product'} × ${item.quantity || 1} — ${money((item.amount_total || 0) / 100)}`
+        );
+        const addr = order.shipping_address || {};
+        const addressText = [addr.name, addr.line1, addr.line2, [addr.city, addr.state, addr.zip].filter(Boolean).join(', '), addr.country]
+          .filter(Boolean).join('\n');
+        const orderRef = newOrder.id.slice(0, 8).toUpperCase();
+        const text = [
+          `Thank you for your Pink Halo Co. order!`,
+          ``,
+          `Order reference: ${orderRef}`,
+          ``,
+          `Items:`,
+          ...itemLines.map(l => `  ${l}`),
+          ``,
+          `Subtotal: ${money(order.subtotal)}`,
+          order.shipping_cost ? `Shipping: ${money(order.shipping_cost)}` : null,
+          order.tax ? `Tax: ${money(order.tax)}` : null,
+          `Total: ${money(order.total)}`,
+          addressText ? `\nShipping to:\n${addressText}` : null,
+          ``,
+          `We'll email you tracking details as soon as your order ships. Preorder items ship as soon as they arrive.`,
+          ``,
+          `Questions? Just reply to this email or write to support@pinkhalo.co.`,
+          ``,
+          `— Pink Halo Co. · pinkhalo.co`,
+        ].filter(l => l !== null).join('\n');
+        const html = `
+          <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;color:#40282E">
+            <h2 style="font-weight:500">Thank you for your order!</h2>
+            <p style="color:#7D6167">Order reference: <strong>${orderRef}</strong></p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+              ${lineItems.map(item => `<tr>
+                <td style="padding:8px 0;border-bottom:1px solid #F0E3DC">${item.description || item.price?.product?.name || 'Product'} × ${item.quantity || 1}</td>
+                <td style="padding:8px 0;border-bottom:1px solid #F0E3DC;text-align:right">${money((item.amount_total || 0) / 100)}</td>
+              </tr>`).join('')}
+              <tr><td style="padding:10px 0;font-weight:bold">Total</td><td style="padding:10px 0;text-align:right;font-weight:bold">${money(order.total)}</td></tr>
+            </table>
+            ${addressText ? `<p style="color:#7D6167;white-space:pre-line"><strong style="color:#40282E">Shipping to:</strong>\n${addressText}</p>` : ''}
+            <p style="color:#7D6167">We'll email you tracking details as soon as your order ships. Preorder items ship as soon as they arrive.</p>
+            <p style="color:#7D6167">Questions? Just reply to this email or write to <a href="mailto:support@pinkhalo.co" style="color:#B4707E">support@pinkhalo.co</a>.</p>
+            <p style="color:#B4707E">— Pink Halo Co. · <a href="https://pinkhalo.co" style="color:#B4707E">pinkhalo.co</a></p>
+          </div>`;
+        await sendMail({
+          from: 'sales',
+          to: order.customer_email,
+          replyTo: 'support@pinkhalo.co',
+          subject: `Your Pink Halo Co. order confirmation — ${orderRef}`,
+          text,
+          html,
+        });
+        console.log('Receipt emailed to', order.customer_email);
+      } catch (err) {
+        console.error('Receipt email failed (order still recorded):', err.message);
+      }
+    }
+
     return { statusCode: 200, body: 'ok' };
   }
 

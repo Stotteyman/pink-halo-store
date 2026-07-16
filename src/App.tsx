@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Route, Routes, useNavigate, useLocation } from 'react-router-dom';
+import { Link, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import AnimatedHero from './components/AnimatedHero';
 import CategoryGrid from './components/CategoryGrid';
@@ -20,6 +20,12 @@ import AdminAddProductPage from './pages/AdminAddProductPage';
 import AdminEditProductPage from './pages/AdminEditProductPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminManufacturersPage from './pages/AdminManufacturersPage';
+import AdminSourcingPage from './pages/AdminSourcingPage';
+import AdminCategoriesPage from './pages/AdminCategoriesPage';
+import AdminGalleryPage from './pages/AdminGalleryPage';
+import AdminMailPage from './pages/AdminMailPage';
+import AdminMarketingPage from './pages/AdminMarketingPage';
+import GalleryPage from './pages/GalleryPage';
 import AdminDiscountsPage from './pages/AdminDiscountsPage';
 import AdminRolesPage from './pages/AdminRolesPage';
 import WishlistPage from './pages/WishlistPage';
@@ -28,8 +34,9 @@ import RewardsPage from './pages/RewardsPage';
 import ReferPage from './pages/ReferPage';
 import InfoPage from './pages/InfoPage';
 import { loadProducts, saveProducts, getCategories } from './lib/products';
-import { fetchCurrentUserRole, fetchPublishedStorefrontProducts, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
+import { fetchCurrentUserRole, fetchPromo, fetchPublishedStorefrontProducts, fetchSettings, getAccessToken, signInWithGoogle, signOutSupabase, supabaseClient } from './lib/supabase';
 import type { Product } from './lib/types';
+import { cartKey, parseCartKey, variantLabel, type StorefrontVariant } from './lib/variants';
 import { clearGuestCart, ensureGuestSession, loadGuestCart, saveGuestCart } from './lib/session';
 import { useWishlist } from './lib/wishlist';
 import CartPage from './pages/CartPage';
@@ -70,6 +77,8 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [authSession, setAuthSession] = useState(false);
   const [userRole, setUserRole] = useState<string>('guest');
+  const [promo, setPromo] = useState<{ percent: number; eligible: boolean }>({ percent: 0, eligible: false });
+  const [featuredIds, setFeaturedIds] = useState<string[]>([]);
   const wishlistIds = useWishlist();
 
   useEffect(() => {
@@ -83,6 +92,13 @@ function App() {
       .then(publishedProducts => setProducts(publishedProducts))
       .catch(error => console.error('Storefront catalog error', error));
 
+    fetchSettings(['featured_product_ids'])
+      .then(data => {
+        const ids = data.settings?.featured_product_ids;
+        if (Array.isArray(ids)) setFeaturedIds(ids.map(String));
+      })
+      .catch(() => undefined);
+
     const loadSessionRole = async (session: any) => {
       if (!session?.user) return;
       try {
@@ -93,10 +109,17 @@ function App() {
       setUserRole(String(fallbackRole));
     };
 
+    const loadPromo = () => {
+      fetchPromo()
+        .then((data) => setPromo({ percent: Number(data?.percent || 0), eligible: Boolean(data?.eligible) }))
+        .catch(() => setPromo({ percent: 0, eligible: false }));
+    };
+
     supabaseClient.auth.getSession().then(({ data: sessionData }) => {
       const signedIn = Boolean(sessionData.session);
       setAuthSession(signedIn);
       if (signedIn) loadSessionRole(sessionData.session);
+      loadPromo();
       if (window.location.hash.includes('access_token=')) {
         window.history.replaceState({}, '', window.location.pathname + window.location.search);
       }
@@ -106,6 +129,7 @@ function App() {
       setAuthSession(Boolean(session));
       if (session) loadSessionRole(session);
       else setUserRole('guest');
+      loadPromo();
     });
 
     return () => authSubscription.subscription.unsubscribe();
@@ -131,11 +155,23 @@ function App() {
   useEffect(() => { saveProducts(products); }, [products]);
   useEffect(() => { saveGuestCart(cart); }, [cart]);
 
+  // New-account promo pricing: eligible members see the sitewide percent
+  // applied on top (best-of vs any baked category/product discount).
+  const pricedProducts = useMemo(() => {
+    if (!promo.eligible || promo.percent <= 0) return products;
+    return products.map((product) => {
+      const base = product.compareAtPrice ?? product.price;
+      const memberPrice = Math.round(base * (1 - promo.percent / 100) * 100) / 100;
+      if (memberPrice >= product.price) return product;
+      return { ...product, price: memberPrice, compareAtPrice: base };
+    });
+  }, [products, promo]);
+
   const matchesSearch = (product: Product) =>
     [product.name, product.description, product.category].join(' ').toLowerCase().includes(search.toLowerCase());
 
   const filteredProducts = useMemo(() => {
-    const list = products.filter((product) => {
+    const list = pricedProducts.filter((product) => {
       let inScope: boolean;
       if (isNewRoute) {
         inScope = (product.tags || []).includes('new');
@@ -155,60 +191,79 @@ function App() {
     else if (sort === 'price-desc') sorted.sort((a, b) => b.price - a.price);
     else if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
     return sorted;
-  }, [category, products, search, isNewRoute, sort]);
+  }, [category, pricedProducts, search, isNewRoute, sort]);
 
   const newArrivals = useMemo(() => {
-    const tagged = products.filter((p) => (p.tags || []).includes('new'));
-    return (tagged.length >= 4 ? tagged : products).slice(0, 12);
-  }, [products]);
+    const tagged = pricedProducts.filter((p) => (p.tags || []).includes('new'));
+    return (tagged.length >= 4 ? tagged : pricedProducts).slice(0, 12);
+  }, [pricedProducts]);
+
+  const featuredProducts = useMemo(
+    () => featuredIds.map((id) => pricedProducts.find((p) => p.id === id)).filter(Boolean) as Product[],
+    [featuredIds, pricedProducts]
+  );
 
   const cartItems = useMemo(() => {
-    return Object.entries(cart).map(([id, quantity]) => {
-      const product = products.find((item) => item.id === id);
-      return product ? { product, quantity } : null;
-    }).filter(Boolean) as { product: Product; quantity: number }[];
-  }, [cart, products]);
+    return Object.entries(cart).map(([key, quantity]) => {
+      const { productId, variantId } = parseCartKey(key);
+      const product = pricedProducts.find((item) => item.id === productId);
+      if (!product) return null;
+      const variant = variantId ? (product.variants || []).find((v) => v.id === variantId) : undefined;
+      if (variantId && !variant) return null;
+      const unitPrice = variant?.price != null ? variant.price : product.price;
+      return { key, product, variant, unitPrice, quantity };
+    }).filter(Boolean) as { key: string; product: Product; variant?: StorefrontVariant; unitPrice: number; quantity: number }[];
+  }, [cart, pricedProducts]);
 
-  const total = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   function toggleCart() { setCartOpen((current) => !current); }
   function closeCart() { setCartOpen(false); }
 
-  function addItemToCart(product: Product, quantity: number = 1, openDrawer: boolean = true) {
-    if (product.stock <= 0 && !product.preorder) {
+  function addItemToCart(product: Product, quantity: number = 1, openDrawer: boolean = true, variant?: StorefrontVariant) {
+    const stock = variant ? variant.stock : product.stock;
+    if (stock <= 0 && !product.preorder) {
       setNotification('This item is currently out of stock.');
       return;
     }
-    setCart((current) => ({ ...current, [product.id]: (current[product.id] || 0) + quantity }));
+    const key = cartKey(product.id, variant?.id);
+    setCart((current) => ({ ...current, [key]: (current[key] || 0) + quantity }));
     if (openDrawer) setCartOpen(true);
   }
 
-  function updateCartQuantity(productId: string, quantity: number) {
-    const product = products.find((item) => item.id === productId);
-    if (!product) return;
-    if (quantity <= 0) { removeFromCart(productId); return; }
-    const maxQuantity = product.preorder ? Math.max(product.stock, 10) : product.stock;
+  function updateCartQuantity(key: string, quantity: number) {
+    const item = cartItems.find((entry) => entry.key === key);
+    if (!item) return;
+    if (quantity <= 0) { removeFromCart(key); return; }
+    const stock = item.variant ? item.variant.stock : item.product.stock;
+    const maxQuantity = item.product.preorder ? Math.max(stock, 10) : stock;
     const adjustedQuantity = Math.min(maxQuantity, Math.max(1, quantity));
-    setCart((current) => ({ ...current, [productId]: adjustedQuantity }));
+    setCart((current) => ({ ...current, [key]: adjustedQuantity }));
   }
 
-  function removeFromCart(productId: string) {
-    setCart((current) => { const next = { ...current }; delete next[productId]; return next; });
+  function removeFromCart(key: string) {
+    setCart((current) => { const next = { ...current }; delete next[key]; return next; });
   }
 
   async function createCheckoutSession() {
     if (cartItems.length === 0) { setNotification('Your cart is empty.'); return; }
     try {
+      // The token lets the server apply the one-time new-account promo
+      const token = await getAccessToken();
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           items: cartItems.map((item) => ({
             name: item.product.name,
-            amount: Math.round(item.product.price * 100),
+            amount: Math.round(item.unitPrice * 100),
             quantity: item.quantity,
             url: item.product.link,
             productId: item.product.id,
+            variantId: item.variant?.id,
           })),
           guestSessionId: ensureGuestSession(),
           customerMode: authSession ? 'authenticated' : 'guest',
@@ -247,8 +302,17 @@ function App() {
 
   const listHeading = isNewRoute ? 'New In' : category === 'All' ? 'Shop All' : category;
 
+  const promoBanner = promo.percent > 0 && !promo.eligible && !authSession ? (
+    <div className="bg-rose text-white text-center px-4 py-2.5">
+      <Link to="/account" className="text-[11px] font-semibold uppercase tracking-[0.18em] hover:underline underline-offset-4">
+        New here? Create an account &amp; get {promo.percent}% off your first order ✦
+      </Link>
+    </div>
+  ) : null;
+
   const storefrontPage = (
     <>
+      {promoBanner}
       {isLandingRoute ? (
         <>
           <AnimatedHero
@@ -256,6 +320,9 @@ function App() {
             onShopBestSellers={() => navigate('/shop')}
           />
           <CategoryGrid />
+          {featuredProducts.length > 0 && (
+            <NewArrivals title="Featured" products={featuredProducts} formatCurrency={formatCurrency} viewAllTo="/shop" />
+          )}
           <NewArrivals title="New Arrivals" products={newArrivals} formatCurrency={formatCurrency} viewAllTo="/new" />
           <EditorialBand />
           <TrustBadges />
@@ -364,18 +431,19 @@ function App() {
           {cartItems.length > 0 ? (
             <div className="space-y-3">
               {cartItems.map((item) => (
-                <div key={item.product.id} className="bg-white border border-hairline p-3.5">
+                <div key={item.key} className="bg-white border border-hairline p-3.5">
                   <div className="flex gap-4">
                     <img src={item.product.imageUrl} alt={item.product.name} className="w-20 h-24 object-cover bg-shell" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-gold">{item.product.category}</p>
                       <h4 className="font-serif text-[15px] text-ink leading-snug mt-0.5 truncate">{item.product.name}</h4>
-                      <p className="text-[13px] font-semibold text-ink mt-1">{formatCurrency(item.product.price)}</p>
+                      {item.variant && <p className="text-xs text-ink-soft mt-0.5">{variantLabel(item.variant)}</p>}
+                      <p className="text-[13px] font-semibold text-ink mt-1">{formatCurrency(item.unitPrice)}</p>
                       <div className="flex items-center gap-2 mt-2.5">
-                        <button type="button" onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)} aria-label="Decrease quantity" className="w-7 h-7 border border-hairline hover:border-rose text-ink transition-colors">−</button>
+                        <button type="button" onClick={() => updateCartQuantity(item.key, item.quantity - 1)} aria-label="Decrease quantity" className="w-7 h-7 border border-hairline hover:border-rose text-ink transition-colors">−</button>
                         <span className="w-8 text-center text-sm text-ink">{item.quantity}</span>
-                        <button type="button" onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)} aria-label="Increase quantity" className="w-7 h-7 border border-hairline hover:border-rose text-ink transition-colors">+</button>
-                        <button onClick={() => removeFromCart(item.product.id)} className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft hover:text-rose transition-colors">Remove</button>
+                        <button type="button" onClick={() => updateCartQuantity(item.key, item.quantity + 1)} aria-label="Increase quantity" className="w-7 h-7 border border-hairline hover:border-rose text-ink transition-colors">+</button>
+                        <button onClick={() => removeFromCart(item.key)} className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft hover:text-rose transition-colors">Remove</button>
                       </div>
                     </div>
                   </div>
@@ -430,13 +498,14 @@ function App() {
           <Route path="/shop" element={storefrontPage} />
           <Route path="/new" element={storefrontPage} />
           <Route path="/category/:name" element={storefrontPage} />
-          <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} products={products} onCheckout={createCheckoutSession} />} />
-          <Route path="/wishlist" element={<WishlistPage products={products} onAdd={addItemToCart} formatCurrency={formatCurrency} />} />
+          <Route path="/cart" element={<CartPage cart={cart} setCart={setCart} products={pricedProducts} onCheckout={createCheckoutSession} />} />
+          <Route path="/wishlist" element={<WishlistPage products={pricedProducts} onAdd={addItemToCart} formatCurrency={formatCurrency} />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/refer" element={<ReferPage />} />
           <Route path="/help/:slug" element={<InfoPage />} />
-          <Route path="/:category/:slug" element={<ProductDetail products={products} onAdd={addItemToCart} setCartOpen={setCartOpen} formatCurrency={formatCurrency} />} />
+          <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/:category/:slug" element={<ProductDetail products={pricedProducts} onAdd={addItemToCart} setCartOpen={setCartOpen} formatCurrency={formatCurrency} />} />
           {/* ── Admin routes ── */}
           <Route path="/admin" element={adminRoute(<AdminDashboardPage />)} />
           <Route path="/admin/products" element={adminRoute(<AdminProductsPage />)} />
@@ -444,6 +513,11 @@ function App() {
           <Route path="/admin/products/:id/edit" element={adminRoute(<AdminEditProductPage />)} />
           <Route path="/admin/orders" element={adminRoute(<AdminOrdersPage />)} />
           <Route path="/admin/manufacturers" element={adminRoute(<AdminManufacturersPage />)} />
+          <Route path="/admin/sourcing" element={adminRoute(<AdminSourcingPage />)} />
+          <Route path="/admin/categories" element={adminRoute(<AdminCategoriesPage />)} />
+          <Route path="/admin/gallery" element={adminRoute(<AdminGalleryPage />)} />
+          <Route path="/admin/mail" element={adminRoute(<AdminMailPage />)} />
+          <Route path="/admin/marketing" element={adminRoute(<AdminMarketingPage />)} />
           <Route path="/admin/discounts" element={adminRoute(<AdminDiscountsPage />)} />
           <Route path="/admin/roles" element={adminRoute(<AdminRolesPage />)} />
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import NotFound from '../components/NotFound';
 
@@ -64,6 +65,63 @@ const CONTENT: Record<string, { title: string; blocks: Block[] }> = {
   },
 };
 
+function ContactForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [topic, setTopic] = useState('support');
+  const [orderRef, setOrderRef] = useState('');
+  const [message, setMessage] = useState('');
+  const [website, setWebsite] = useState(''); // honeypot
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    setStatus(null);
+    try {
+      const res = await fetch('/api/ph-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, topic, orderRef, message, website }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Could not send your message.');
+      setStatus({ ok: true, text: 'Message sent! We typically reply within one business day.' });
+      setName(''); setEmail(''); setOrderRef(''); setMessage('');
+    } catch (err: any) {
+      setStatus({ ok: false, text: err?.message || 'Could not send your message. Please email us directly.' });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const field = 'w-full px-4 py-3 border border-hairline bg-white text-ink text-sm outline-none focus:border-rose';
+  return (
+    <form onSubmit={submit} className="border border-hairline bg-white p-6 mb-10 space-y-3">
+      <p className="font-serif text-xl text-ink mb-1">Send us a message</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={field} />
+        <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" className={field} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <select value={topic} onChange={(e) => setTopic(e.target.value)} className={field}>
+          <option value="support">Support question</option>
+          <option value="order">Help with an order</option>
+          <option value="sales">Sales inquiry</option>
+          <option value="careers">Careers</option>
+          <option value="other">Something else</option>
+        </select>
+        <input value={orderRef} onChange={(e) => setOrderRef(e.target.value)} placeholder="Order reference (optional)" className={field} />
+      </div>
+      <input value={website} onChange={(e) => setWebsite(e.target.value)} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" placeholder="Website" />
+      <textarea required rows={5} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="How can we help?" className={field} />
+      {status && <p className={`text-sm ${status.ok ? 'text-green-700' : 'text-rose'}`}>{status.text}</p>}
+      <button type="submit" disabled={sending} className="btn-primary">{sending ? 'Sending…' : 'Send Message'}</button>
+    </form>
+  );
+}
+
 export default function InfoPage() {
   const { slug } = useParams<{ slug: string }>();
   const data = slug ? CONTENT[slug] : undefined;
@@ -73,6 +131,7 @@ export default function InfoPage() {
     <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 lg:py-20">
       <p className="overline text-gold mb-3">Pink Halo Co.</p>
       <h1 className="font-serif font-medium text-ink text-4xl md:text-5xl leading-tight mb-10">{data.title}</h1>
+      {slug === 'contact' && <ContactForm />}
       <div className="space-y-7">
         {data.blocks.map((b, i) => (
           <div key={i}>

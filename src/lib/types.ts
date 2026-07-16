@@ -15,6 +15,7 @@ export interface Product {
   link: string;
   tags?: string[];
   profitMargin: number;
+  variants?: import('./variants').StorefrontVariant[];
 }
 
 export interface CartItem {
