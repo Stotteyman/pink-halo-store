@@ -60,7 +60,13 @@ export async function signInWithGoogle() {
 
 export async function signUpWithEmail(email: string, password: string) {
   if (!supabaseClient) throw new Error('Supabase is not configured');
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    // Shared Supabase project: without this, confirmation emails send users
+    // to the project-level Site URL (ai.wagesociety.com) instead of back here.
+    options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` },
+  });
   if (error) throw error;
   return data;
 }

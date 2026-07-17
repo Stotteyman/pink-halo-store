@@ -122,7 +122,20 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-[#53343C] mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-[11px] text-[#8E6F78]">© {year} Pink Halo Co. All rights reserved.</p>
+          <div className="text-center sm:text-left">
+            <p className="text-[11px] text-[#8E6F78]">© {year} Pink Halo Co. All rights reserved.</p>
+            <p className="text-[11px] text-[#8E6F78] mt-0.5">
+              Made with 💕 by{' '}
+              <a
+                href="https://orangeduckstudios.com"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[#E3BFC7] hover:text-white transition-colors"
+              >
+                Orange Duck Studios
+              </a>
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             {['VISA', 'MC', 'AMEX', 'PAYPAL', 'APPLE PAY'].map((p) => (
               <span key={p} className="border border-[#53343C] px-2 py-1 text-[9px] font-bold tracking-[0.08em] text-[#CFB4B7]">{p}</span>
