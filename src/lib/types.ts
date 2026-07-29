@@ -82,6 +82,18 @@ export interface PHProduct {
   stripe_price_id?: string;
   weight_oz?: number;
   shipping_lead_days?: number;
+  // Dropship / AliExpress sourcing
+  source?: string;
+  source_url?: string;
+  source_product_id?: string;
+  source_price?: number;
+  source_currency?: string;
+  source_stock?: number;
+  sync_status?: 'pending' | 'ok' | 'price_changed' | 'out_of_stock' | 'error';
+  sync_error?: string | null;
+  auto_sync?: boolean;
+  markup_percent?: number;
+  last_synced_at?: string | null;
   created_at: string;
   updated_at: string;
   categories?: Pick<PHCategory, 'name' | 'slug'>;

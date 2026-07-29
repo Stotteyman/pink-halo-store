@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: 'Orders', to: '/admin/orders' },
   { label: 'Manufacturers', to: '/admin/manufacturers' },
   { label: 'Sourcing & Pricing', to: '/admin/sourcing' },
+  { label: 'Import', to: '/admin/import' },
   { label: 'Discounts', to: '/admin/discounts' },
   { label: 'Mail', to: '/admin/mail' },
   { label: 'Marketing', to: '/admin/marketing' },

@@ -371,3 +371,60 @@ export async function updateDiscount(id: string, updates: Partial<PHDiscount>) {
 export async function deleteDiscount(id: string) {
   return apiFetch('ph-discounts?id=' + id, { method: 'DELETE' });
 }
+
+// ── Dropship (AliExpress import + sync) ──────────────────────────────────────
+
+export interface DropshipProduct {
+  id: string;
+  name: string;
+  price: number;
+  cost?: number;
+  stock: number;
+  source_price?: number;
+  source_stock?: number;
+  source_url?: string;
+  source_product_id?: string;
+  sync_status?: 'pending' | 'ok' | 'price_changed' | 'out_of_stock' | 'error';
+  sync_error?: string | null;
+  auto_sync?: boolean;
+  markup_percent?: number;
+  last_synced_at?: string | null;
+  status?: string;
+  images?: string[];
+}
+
+export interface DropshipSettings {
+  default_margin_percent: number;
+  default_category: string;
+  provider: 'official' | 'third_party' | 'scrape';
+  auto_reprice: boolean;
+}
+
+export async function fetchDropshipProducts() {
+  return apiFetch('ph-dropship', { method: 'GET' }) as Promise<{ products: DropshipProduct[]; settings: DropshipSettings }>;
+}
+
+export async function importDropshipUrls(urls: string[], opts?: { status?: 'draft' | 'active'; margin_percent?: number; category?: string }) {
+  return apiFetch('ph-dropship', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'import', urls, ...opts }),
+  }) as Promise<{ imported: number; results: Array<{ url: string; ok: boolean; skipped?: boolean; id?: string; name?: string; price?: number; cost?: number; provider?: string; warning?: string | null; error?: string }> }>;
+}
+
+export async function syncDropship(id?: string) {
+  return apiFetch('ph-dropship', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'sync', ...(id ? { id } : {}) }),
+  }) as Promise<{ synced: number; results: Array<{ id: string; name: string; sync_status: string; cost?: number; stock?: number; error?: string }> }>;
+}
+
+export async function toggleDropshipAutoSync(id: string, auto_sync: boolean) {
+  return apiFetch('ph-dropship', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'toggle_auto_sync', id, auto_sync }),
+  });
+}
+
+export async function fetchDropshipLog(id: string) {
+  return apiFetch('ph-dropship?log=' + id, { method: 'GET' }) as Promise<{ log: Array<Record<string, unknown>> }>;
+}

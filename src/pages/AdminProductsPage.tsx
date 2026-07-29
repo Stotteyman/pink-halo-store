@@ -118,6 +118,11 @@ export default function AdminProductsPage() {
                         <div>
                           <p className="font-medium text-gray-900">{p.name}</p>
                           {p.sku && <p className="text-xs text-gray-500">SKU: {p.sku}</p>}
+                          {p.source === 'aliexpress' && (
+                            <span className="inline-flex items-center mt-0.5 text-[10px] text-pink-600 bg-pink-50 border border-pink-100 px-1.5 py-0.5 rounded-full" title={p.sync_error || ''}>
+                              Dropship{p.sync_status && p.sync_status !== 'ok' ? ` · ${p.sync_status.replace(/_/g, ' ')}` : ''}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>

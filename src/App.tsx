@@ -21,6 +21,7 @@ import AdminEditProductPage from './pages/AdminEditProductPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminManufacturersPage from './pages/AdminManufacturersPage';
 import AdminSourcingPage from './pages/AdminSourcingPage';
+import AdminImportPage from './pages/AdminImportPage';
 import AdminCategoriesPage from './pages/AdminCategoriesPage';
 import AdminGalleryPage from './pages/AdminGalleryPage';
 import AdminMailPage from './pages/AdminMailPage';
@@ -514,6 +515,7 @@ function App() {
           <Route path="/admin/orders" element={adminRoute(<AdminOrdersPage />)} />
           <Route path="/admin/manufacturers" element={adminRoute(<AdminManufacturersPage />)} />
           <Route path="/admin/sourcing" element={adminRoute(<AdminSourcingPage />)} />
+          <Route path="/admin/import" element={adminRoute(<AdminImportPage />)} />
           <Route path="/admin/categories" element={adminRoute(<AdminCategoriesPage />)} />
           <Route path="/admin/gallery" element={adminRoute(<AdminGalleryPage />)} />
           <Route path="/admin/mail" element={adminRoute(<AdminMailPage />)} />
